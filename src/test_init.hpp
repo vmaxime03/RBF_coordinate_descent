@@ -7,28 +7,29 @@
 #include <cstddef>
 #include <cstdlib>
 
-using namespace UM; 
 
 #include "sdf.hpp"
 
 
 template <typename RBF_T>
-void gen_1(PolyLine& pl, SDF<RBF_T>& sdf) {
+void gen_1(UM::PolyLine& pl, SDF<RBF_T>& sdf) {
 	pl.points.create_points(3);
-	pl.create_edges(2);
+	pl.create_edges(3);
 
-	pl.points[0] = vec2(-1., 1.).xy0();
-	pl.points[1] = vec2(0., 0.).xy0();
-	pl.points[2] = vec2(1., 1.).xy0();
+	pl.points[0] = UM::vec2(-1., 1.).xy0();
+	pl.points[1] = UM::vec2(0., 0.).xy0();
+	pl.points[2] = UM::vec2(1., 1.).xy0();
 
 	pl.vert(0, 0) = 0;
 	pl.vert(0, 1) = 1;
 	pl.vert(1, 0) = 1;
 	pl.vert(1, 1) = 2;
+	pl.vert(2, 0) = 2;
+	pl.vert(2, 1) = 0;
 
 	pl.connect();
 
-	int t = 2;
+	int t = 3;
 
 	sdf.p.resize(t);
 	sdf.alpha.resize(t);
@@ -40,21 +41,19 @@ void gen_1(PolyLine& pl, SDF<RBF_T>& sdf) {
 	--t;
 	sdf.p		[t] = {-1, 0};
 	sdf.alpha	[t] = 1;
-	sdf.beta	[t] = {-1, 0};
+	sdf.beta	[t] = {1, 0};
 	sdf.sigma	[t] = 1;
 
-	/*
 	--t;
 	sdf.p		[t] = {1, 0};
 	sdf.alpha	[t] = 1;
-	sdf.beta	[t] = {1, 0};
+	sdf.beta	[t] = {-1, 0};
 	sdf.sigma	[t] = 1;
-	*/
 	
 	--t;
 	sdf.p		[t] = {0, 1};
 	sdf.alpha	[t] = 1;
-	sdf.beta	[t] = {0, 1};
+	sdf.beta	[t] = {0, -1};
 	sdf.sigma	[t] = 1;
 
 	/*
@@ -68,7 +67,5 @@ void gen_1(PolyLine& pl, SDF<RBF_T>& sdf) {
 	}
 	*/
 }
-
-
 
 #endif

@@ -66,6 +66,16 @@ def load_snapshots(directory):
 
     return snapshots
 
+def read_polyline(fname):
+    edges = []
+    with open(fname) as f:
+        for line in f:
+            x1, y1, x2, y2 = map(float, line.strip().split(','))
+            edges.append((x1, y1, x2, y2))
+    
+    px = [e[0] for e in edges] + [edges[-1][2]]
+    py = [e[1] for e in edges] + [edges[-1][3]]
+    return px, py
 
 
 # MAIN
@@ -118,9 +128,11 @@ def main():
                    colors=["#ff4444"], linewidths=2.5, zorder=3)
 
 
-        # polyline TODO read from json
-        px, py = [-1, 0, 1], [1, 0, 1]
+
+        # polyline 
+        px, py = read_polyline(sys.argv[1] + "polyline.csv");
         ax.plot(px, py, color="lime", linewidth=2, zorder=4)
+
 
          
         # control points + beta vectors
