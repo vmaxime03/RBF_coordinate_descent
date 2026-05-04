@@ -9,6 +9,7 @@ struct RBF {
 	virtual ~RBF() = default;
 	virtual inline double f(double r, double e) const = 0;
 	virtual inline double df(double r, double e) const = 0;
+	virtual inline double ddf(double r, double e) const = 0;
 	virtual inline std::string name() const = 0;
 };
 
@@ -31,6 +32,9 @@ struct Gaussian : RBF {
 	}
 	inline double df(double r, double s) const override {
 		return (-r/(s*s)) * f(r, s);
+	}
+	inline double ddf(double r, double s) const override {
+		return ((r*r)/(s*s*s*s) - 1./(s*s)) * f(r, s);
 	}
 	inline std::string name() const override { return "gaussian"; }
 };
