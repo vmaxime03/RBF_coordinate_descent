@@ -21,13 +21,15 @@ void debug_sdf(SDF& sdf, double minx, double miny, double maxx, double maxy, con
 	std::ofstream out(fname);
 	int w = step;
 	int h = step;
-	for (int i = 0; i < w; ++i) {
-		for (int j = 0; j < h; ++j) {
+	for (int j = 0; j < h; ++j) {
+		for (int i = 0; i < w; ++i) {
 			const double x = minx + (double(i) / double(w - 1)) * (maxx - minx);
 			const double y = miny + (double(j) / double(h - 1)) * (maxy - miny);
 			double dist = sdf.distance({x, y});
-			out << x << "," << y << "," << dist;
-			if (j < h - 1) out << ",";
+			vec2 grad = sdf.gradient({x, y});
+			out << x << "," << y << "," << dist << "," << grad.x << "," << grad.y ;
+
+			if (i < w - 1) out << ",";
 		}
 		out << "\n";
 	}
@@ -76,8 +78,10 @@ double error(SDF& sdf, PointNormal& p) {
 	// ||u|| * ||v|| - dot(u, v)
 	double coef = g.norm() * p.second.norm() - (g * p.second);
 	// =  0 si colinear, 1 orthogonaux, 2 opposé
+	
+	vec2 diff = (g - p.second);
 
-	return d * d + cross * cross * (1 + coef);
+	return d * d + diff.norm2();
 	// return d * d * (1 + coef);
 }
 
@@ -137,7 +141,8 @@ int main(int argc, char** argv) {
 	PolyLine pl;
 	auto rbf = std::make_unique<Gaussian>();
 	SDF sdf(std::move(rbf));
-	gen_1(pl, sdf);
+
+	gen_0(pl, sdf);
 
 	export_polyline(pl, output_dir + "polyline.csv");
 
@@ -147,7 +152,7 @@ int main(int argc, char** argv) {
 	double lb_beta  = -5.,  ub_beta  = 5.,  step_beta  = 0.001;
 	double lb_sigma = 0.3, ub_sigma = 10.,  step_sigma = 0.001;
 
-	size_t max_it = (argc > 1) ? std::stoul(argv[1]) : 15000;
+	size_t max_it = (argc > 1) ? std::stoul(argv[1]) : 4000;
 
 	Samples samples;
 	compute_samples_normals(pl, samples);

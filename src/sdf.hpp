@@ -88,7 +88,7 @@ struct SDF {
 
 	json to_json() {
 		json j;
-		j["rbf"] = rbf.name();
+		j["rbf"] = rbf->name();
 		j["param"] = sigma[0]; // TODO ? 
 
 		j["points"] = json::array();

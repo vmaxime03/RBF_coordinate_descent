@@ -12,6 +12,33 @@
 
 
 
+void gen_0(UM::PolyLine& pl, SDF& sdf) {
+	pl.points.create_points(2);
+	pl.create_edges(1);
+
+	pl.points[0] = UM::vec2(-1., 0.).xy0();
+	pl.points[1] = UM::vec2(1., 0.).xy0();
+
+	pl.vert(0, 0) = 0;
+	pl.vert(0, 1) = 1;
+
+	pl.connect();
+
+	int t = 1;
+
+	sdf.p.resize(t);
+	sdf.alpha.resize(t);
+	sdf.beta.resize(t);
+	sdf.sigma.resize(t);
+
+	--t;
+	sdf.p		[t] = {-1, 0};
+	sdf.alpha	[t] = 1;
+	sdf.beta	[t] = {1, 0};
+	sdf.sigma	[t] = 1;
+
+
+}
 void gen_1(UM::PolyLine& pl, SDF& sdf) {
 	pl.points.create_points(3);
 	pl.create_edges(2);
