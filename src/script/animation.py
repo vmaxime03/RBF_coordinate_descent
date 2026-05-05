@@ -15,18 +15,6 @@ from matplotlib.widgets import Button
 from rbf import RBF
 
 
-# RBF 
-def gaussian(r, s):
-    return np.exp(-r * r / (2 * s * s))
-
-def gaussian_d(r, s):
-    return (-r / (s * s)) * gaussian(r, s)
-
-
-RBF_MAP = {
-    "gaussian": (gaussian, gaussian_d),
-}
-
 
 # SDF
 def eval_sdf(X, Y, data):

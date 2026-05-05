@@ -67,13 +67,6 @@ RBF.register(RBFKernel(
     ddphi   = lambda r, _ : 2 * np.log(r) + 3
     ))
 RBF.register(RBFKernel(
-    name    = "gaussian",
-    extra_param= _gen_extra_param("epsilon", 0.001, 5.0, 0.5, 0.001),
-    phi     = lambda r, e : np.exp(-(e**2) * r**2),
-    dphi    = lambda r, e : -2*(e**2)*r * np.exp(-(e**2) * r**2),
-    ddphi   = lambda r, e : (-2*(e**2) + 4*e**4*r**2) * np.exp(-(e**2) * r ** 2)
-    ))
-RBF.register(RBFKernel(
     name    = "multiquadric",
     extra_param= _gen_extra_param("epsilon", 0.1, 5.0, 0.5, 0.01),
     phi     = lambda r, e : np.sqrt(1 + e**2*r**2),
@@ -87,6 +80,17 @@ RBF.register(RBFKernel(
     dphi    = lambda r, e : -(e**2)*r / (1 + e**2*r**2)**1.5,
     ddphi   = lambda r, e : e**2*(2*e**2*r**2 - 1) / (1 + e**2*r**2)**2.5
     ))
+
+
+RBF.register(RBFKernel(
+    name    = "gaussian",
+    extra_param= _gen_extra_param("sigma", 0.001, 5.0, 0.5, 0.001),
+    phi     = lambda r, s : np.exp(-r**2 / (2*s**2)),
+    dphi    = lambda r, s : (-r / (s**2)) * np.exp(-r**2 / (2*s**2)),
+    ddphi   = lambda r, s : (r**2/s**4 - 1/s**2) * np.exp(-r**2 / (2*s**2))
+    ))
+
+
 RBF.register(RBFKernel(
     name    = "wendlandC2",
     extra_param= _gen_extra_param("support radius", 0.0, 10.0, 2.0, 0.05),
