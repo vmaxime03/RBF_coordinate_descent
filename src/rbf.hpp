@@ -13,18 +13,6 @@ struct RBF {
 	virtual inline std::string name() const = 0;
 };
 
-/*
-struct WendlandC2 : RBF { // TODO 
-	inline double f(double r, double p) const override {
-		return 0.;
-	}
-
-	inline double df(double r, double p) const override {
-		return 0.;
-	}
-};
-*/
-
 
 struct Gaussian : RBF {
 	inline double f(double r, double s) const override {
@@ -38,6 +26,33 @@ struct Gaussian : RBF {
 	}
 	inline std::string name() const override { return "gaussian"; }
 };
+
+
+struct WendlandC2 : RBF {
+    inline double f(double r, double e) const override {
+        double t = r / e;
+        if (t >= 1.0) return 0.0;
+        double s = 1.0 - t;
+        return s*s*s*s * (4.0*t + 1.0);
+    }
+
+    inline double df(double r, double e) const override {
+        double t = r / e;
+        if (t >= 1.0) return 0.0;
+        double s = 1.0 - t;
+        return (s*s*s * (-4.0*(4.0*t + 1.0)) + s*s*s*s * 4.0) / e;
+    }
+
+    inline double ddf(double r, double e) const override {
+        double t = r / e;
+        if (t >= 1.0) return 0.0;
+        double s = 1.0 - t;
+        return (s*s * (20.0 * (4.0*t + 1.0) - 8.0*s*4.0 - 4.0*s*4.0)) / (e*e);
+    }
+
+    inline std::string name() const override { return "wendlandC2"; }
+};
+
 
 
 #endif

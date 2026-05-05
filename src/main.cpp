@@ -1,10 +1,13 @@
 #include "ultimaille/algebra/vec.h"
 #include "ultimaille/polyline.h"
 #include <cstddef>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <ostream>
+#include <tuple>
 #include <ultimaille/all.h>
+#include <utility>
 #include <vector>
 
 #include "geo_polyline.hpp"
@@ -14,8 +17,7 @@
 
 using namespace UM;
 
-template <typename RBF_T>
-void debug_sdf(SDF<RBF_T>& sdf, double minx, double miny, double maxx, double maxy, const std::string& fname, int step = 100) {
+void debug_sdf(SDF& sdf, double minx, double miny, double maxx, double maxy, const std::string& fname, int step = 100) {
 	std::ofstream out(fname);
 	int w = step;
 	int h = step;
@@ -44,40 +46,59 @@ void export_polyline(PolyLine& pl, const std::string& fname) {
 
 // =========================================================================
 
-typedef std::vector<vec2> Samples;
+typedef std::pair<vec2, vec2> PointNormal;
+typedef std::vector<PointNormal> Samples;
 
 // points along the polyline
-Samples build_samples(PolyLine& pl, size_t n = 10) {
-	Samples r;
+void  compute_samples_normals(PolyLine& pl, Samples& samples, size_t n = 10) {
 	for (const auto& e : pl.iter_edges()) {
 		vec2 d = e.to().pos().xy() - e.from().pos().xy();
-		for (size_t i = 0; i < n; ++i) {
+		
+		vec2 normal = vec2(-d.y, d.x).normalized();
+
+		for (size_t i = 1; i < n-1; ++i) {
 			vec2 p = e.from().pos().xy() + ((double)i / (double)n) * d;
-			r.push_back(p);
+			samples.push_back({p, normal});
+
 		}
 	}
-	return r;
 }
 
+double error(SDF& sdf, PointNormal& p) {
+	double d = sdf.distance(p.first); // distance 
+	vec2 g = sdf.gradient(p.first); // gradiant
+	
+	double cross = UM::cross(g.xy0(), p.second.xy0()).z; // colinear 
+
+	double dot = g * p.second; // orientation
+	double edot = std::max(0.0, -dot); // max TODO LSE 
+	
+	// ||u|| * ||v|| - dot(u, v)
+	double coef = g.norm() * p.second.norm() - (g * p.second);
+	// =  0 si colinear, 1 orthogonaux, 2 opposé
+
+	return d * d + cross * cross * (1 + coef);
+	// return d * d * (1 + coef);
+}
+
+
+
 // total error score
-template <typename RBF_T>
-double err(SDF<RBF_T>& sdf, const Samples& samples) {
+double error_total(SDF& sdf, Samples& samples) {
 	double t = 0.;
-	for (const auto& p : samples) {
-		double d = sdf.distance(p);
-		t += d * d;
+	for (size_t i = 0; i < samples.size(); ++i) {
+		t += error(sdf, samples[i]);	
 	}
 	return t;
 }
 
-template <typename RBF_T>
 bool try_step(
 		double& var,  // coordiante to optimize
 		double& step, // step for the coord
 		double lb, double ub, // bound for the coord
-		SDF<RBF_T>& sdf, // function
+		SDF& sdf, // function
 		size_t i, // current point 
-		const Samples& samples, // samples
+		Samples& samples, // samples
 		double& curr_err // current error score
 		) {
 
@@ -85,7 +106,7 @@ bool try_step(
 	
 	// try +step
     var = std::clamp(old + step, lb, ub);
-    double errp = err(sdf, samples);
+    double errp = error_total(sdf, samples);
 
     if (errp < curr_err) { 
         curr_err = errp;
@@ -94,14 +115,13 @@ bool try_step(
 
     // try -step
     var = std::clamp(old - step, lb, ub);
-    double errm = err(sdf, samples);
+    double errm = error_total(sdf, samples);
 
     if (errm < curr_err) { 
         curr_err = errm;
         return true;
     }
 
-    // no imporvment, shrink step
     var = old;
     return false;
 }
@@ -111,29 +131,32 @@ bool try_step(
 int main(int argc, char** argv) {
 
 	const std::string output_dir = OUTPUT_DIR + std::string("test/");
+	std::filesystem::remove_all(output_dir);
 	std::filesystem::create_directories(output_dir);
 
 	PolyLine pl;
-	SDF<Gaussian> sdf;
+	auto rbf = std::make_unique<Gaussian>();
+	SDF sdf(std::move(rbf));
 	gen_1(pl, sdf);
 
 	export_polyline(pl, output_dir + "polyline.csv");
 
 	// 	   lower bound		upper bound 	step
 	double lb_point = -5.,  ub_point = 5.,  step_point = 0.001;
-	double lb_alpha = 0.,   ub_alpha = 10., step_alpha = 0.001;
+	double lb_alpha =  0.,   ub_alpha = 10., step_alpha = 0.001;
 	double lb_beta  = -5.,  ub_beta  = 5.,  step_beta  = 0.001;
-	double lb_sigma = 0.01, ub_sigma = 5.,  step_sigma = 0.001;
+	double lb_sigma = 0.3, ub_sigma = 10.,  step_sigma = 0.001;
 
-	size_t max_it = (argc > 1) ? std::stoul(argv[1]) : 2500;
+	size_t max_it = (argc > 1) ? std::stoul(argv[1]) : 15000;
 
-	const Samples samples = build_samples(pl);
+	Samples samples;
+	compute_samples_normals(pl, samples);
 
 	for (size_t it = 0; it < max_it; ++it) {
 
 		
-		if (it % std::max<size_t>(1, max_it / 100) == 0) {
-			double total_err = err(sdf, samples);
+		if (it % std::max<size_t>(1, max_it / 30) == 0) {
+			double total_err = error_total(sdf, samples);
 			std::cout << it << ": err : " << total_err << "\t"  << sdf.to_string() << std::endl;
 
 			// std::cout << it << "\t/" << max_it << "\r";	std::cout.flush();
@@ -143,7 +166,7 @@ int main(int argc, char** argv) {
 		for (size_t i = 0; i < sdf.p.size(); ++i) {
 
 
-			double ce = err(sdf, samples);
+			double ce = error_total(sdf, samples);
 
 			try_step(sdf.alpha[i],  step_alpha, lb_alpha, ub_alpha, sdf, i, samples, ce);
 			try_step(sdf.beta[i].x, step_beta,  lb_beta,  ub_beta,  sdf, i, samples, ce);
