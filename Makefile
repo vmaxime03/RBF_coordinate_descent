@@ -26,7 +26,7 @@ _gif: $(DONE)
 	cd build/src/script && python3 animation.py ./../output/test/ ./../../../output/anim.gif
 
 _octave: $(DONE)
-	cd build/src/script && octave --no-gui debug.m ./../output/test/sdf.csv
+	cd build/src/script && octave --no-gui debug.m ./../output/test/sdf.csv ./../output/test/polyline.csv
 
 
 
