@@ -12,6 +12,7 @@ import matplotlib.animation as animation
 from matplotlib.patches import FancyArrowPatch
 from matplotlib.widgets import Button
  
+from rbf import RBF
 
 
 # RBF 
@@ -30,7 +31,7 @@ RBF_MAP = {
 # SDF
 def eval_sdf(X, Y, data):
     rbf_name = data.get("rbf", "gaussian")
-    phi, dphi = RBF_MAP[rbf_name]
+    rbf = RBF.get(rbf_name)
 
     result = np.zeros_like(X, dtype=float)
     for p in data["points"]:
@@ -43,7 +44,7 @@ def eval_sdf(X, Y, data):
         DY = Y - py
         n  = np.maximum(np.sqrt(DX**2 + DY**2), 1e-8)
 
-        result += alpha * phi(n, s) + dphi(n, s) * (bx * DX / n + by * DY / n)
+        result += alpha * rbf(n, s) + rbf.d(n, s) * (bx * DX / n + by * DY / n)
 
 
     return result
@@ -68,14 +69,26 @@ def load_snapshots(directory):
 
 def read_polyline(fname):
     edges = []
+    normals = []
     with open(fname) as f:
         for line in f:
             x1, y1, x2, y2 = map(float, line.strip().split(','))
             edges.append((x1, y1, x2, y2))
+
+            xx = x2 - x1
+            yy = y2 - y1
+            length = math.sqrt(xx**2 + yy**2)
+            if length > 1e-8:
+                nx, ny = -yy / length, xx / length  # unit normal (left-hand)
+            else:
+                nx, ny = 0.0, 0.0
+            mx, my = x1 + xx / 2, y1 + yy / 2      # edge midpoint
+            normals.append((mx, my, nx, ny))
+
     
     px = [e[0] for e in edges] + [edges[-1][2]]
-    py = [e[1] for e in edges] + [edges[-1][3]]
-    return px, py
+    py = [e[1] for e in edges] + [edges[-1][3]] 
+    return px, py, normals
 
 
 # MAIN
@@ -130,8 +143,19 @@ def main():
 
 
         # polyline 
-        px, py = read_polyline(sys.argv[1] + "polyline.csv");
+        px, py, normals = read_polyline(sys.argv[1] + "polyline.csv");
         ax.plot(px, py, color="lime", linewidth=2, zorder=4)
+
+        # normals
+        for mx, my, nx, ny in normals:
+            arr = FancyArrowPatch(
+                (mx, my),
+                (mx + nx * 0.15, my + ny * 0.15),
+                arrowstyle="-|>", color="cyan",
+                mutation_scale=8, linewidth=1.2, zorder=5,
+                alpha=0.8,
+            )
+            ax.add_patch(arr)
 
 
          
