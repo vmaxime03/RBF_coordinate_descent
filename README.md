@@ -1,8 +1,3 @@
-### Dependencies
-
-- [nlohmann/json](https://github.com/nlohmann/json)
-
-
 ```shell
 make build 
 
