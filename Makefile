@@ -1,32 +1,22 @@
-.PHONY: clean anim gif octave build
-
-BINARY := build/src/main
-DONE   := build/src/output/test/.done
+.PHONY: clean anim gif octave build run
 
 
-# prevent reruning when no changes
-$(DONE): $(BINARY)
-	cd build/src && ./main
-	mkdir -p $(dir $(DONE))
-	touch $(DONE)
+run:
+	cd build/src && ./main 
 
-
-anim gif octave:
-	mkdir -p build
-	cd build && cmake3 ..
-	$(MAKE) -C build
-	$(MAKE) _$@
-
-_anim: $(DONE)
+anim: 
 	cd build/src/script && python3 animation.py ./../output/test/
 	cp build/src/output/test/sdf.json output/
 
-_gif: $(DONE)
+gif: 
 	mkdir -p output
 	cd build/src/script && python3 animation.py ./../output/test/ ./../../../output/anim.gif
 
-_octave: $(DONE)
+octave: 
 	cd build/src/script && octave --no-gui debug.m ./../output/test/sdf.csv ./../output/test/polyline.csv
+
+correlation: 
+	cd build/src/script && python3 correlation.py ./../output/test/
 
 
 
