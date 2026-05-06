@@ -78,9 +78,9 @@ struct SDF {
 
 	std::string to_string() {
 		std::stringstream ss;
-		ss << "SDF(\n";
+		ss << "SDF:\n";
 		for (size_t i = 0; i < p.size(); ++i) {
-			ss << "\tpi=(" << p[i].x << ", " << p[i].y << "), ai="	<< alpha[i] << ", bi=(" << beta[i].x << ", " << beta[i].y << "), s=" << sigma[i] << ";\n";
+			ss << "\tpi=(" << p[i].x << ",\t" << p[i].y << "),\tai="	<< alpha[i] << ",\tbi=(" << beta[i].x << ",\t" << beta[i].y << "),\ts=" << sigma[i] << ";\n";
 		}
 
 		return ss.str();

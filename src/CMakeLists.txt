@@ -22,3 +22,7 @@ add_definitions(-DOUTPUT_DIR=\"${OUTPUT_DIR}/\")
 
 # Copy asset files to build directory
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/script DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+set(INPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../assets")
+add_definitions(-DINPUT_DIR=\"${INPUT_DIR}/\")
+

@@ -70,19 +70,12 @@ double error(SDF& sdf, PointNormal& p) {
 	double d = sdf.distance(p.first); // distance 
 	vec2 g = sdf.gradient(p.first); // gradiant
 	
-	double cross = UM::cross(g.xy0(), p.second.xy0()).z; // colinear 
-
-	double dot = g * p.second; // orientation
-	double edot = std::max(0.0, -dot); // max TODO LSE 
-	
-	// ||u|| * ||v|| - dot(u, v)
-	double coef = g.norm() * p.second.norm() - (g * p.second);
-	// =  0 si colinear, 1 orthogonaux, 2 opposé
-	
 	vec2 diff = (g - p.second);
 
+	// pi on polyline 
+	// distance -> 0 
+	// gradient -> ni
 	return d * d + diff.norm2();
-	// return d * d * (1 + coef);
 }
 
 
@@ -137,30 +130,38 @@ int main(int argc, char** argv) {
 	const std::string output_dir = OUTPUT_DIR + std::string("test/");
 	std::filesystem::remove_all(output_dir);
 	std::filesystem::create_directories(output_dir);
+	const std::string input_dir = INPUT_DIR;
+
 
 	PolyLine pl;
 	auto rbf = std::make_unique<Gaussian>();
 	SDF sdf(std::move(rbf));
 
-	gen_0(pl, sdf);
+	PolyLineGenerator::regular_polygon(pl, sdf, 3, 5);
+	
+	//PolyLineGenerator::random_polygon(pl, sdf, 15, 5);
+	
+	//PolyLineGenerator::read_from_file(pl, sdf, input_dir + "duck.geogram", 50);
 
-	export_polyline(pl, output_dir + "polyline.csv");
 
 	// 	   lower bound		upper bound 	step
-	double lb_point = -5.,  ub_point = 5.,  step_point = 0.001;
-	double lb_alpha =  0.,   ub_alpha = 10., step_alpha = 0.001;
-	double lb_beta  = -5.,  ub_beta  = 5.,  step_beta  = 0.001;
-	double lb_sigma = 0.3, ub_sigma = 10.,  step_sigma = 0.001;
+	double lb_point = -5.,  ub_point = 5.,  	step_point = 0.01;
+	double lb_alpha =  0.,  ub_alpha = 10., 	step_alpha = 0.01;
+	double lb_beta  = -5.,  ub_beta  = 5.,  	step_beta  = 0.01;
+	double lb_sigma = 0.5,	ub_sigma = 10.,  	step_sigma = 0.01;
 
-	size_t max_it = (argc > 1) ? std::stoul(argv[1]) : 4000;
+
+
+
+	size_t max_it = (argc > 1) ? std::stoul(argv[1]) : 500;
 
 	Samples samples;
-	compute_samples_normals(pl, samples);
+	compute_samples_normals(pl, samples, 10);
 
 	for (size_t it = 0; it < max_it; ++it) {
 
 		
-		if (it % std::max<size_t>(1, max_it / 30) == 0) {
+		if (it % std::max<size_t>(1, max_it / 20) == 0) {
 			double total_err = error_total(sdf, samples);
 			std::cout << it << ": err : " << total_err << "\t"  << sdf.to_string() << std::endl;
 
@@ -182,6 +183,7 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	export_polyline(pl, output_dir + "polyline.csv");
 	std::ofstream(output_dir + "sdf.json") << sdf.to_json().dump(2);
 	debug_sdf(sdf, -3, -3, 3, 3, output_dir + "sdf.csv");
 

@@ -53,6 +53,35 @@ struct WendlandC2 : RBF {
     inline std::string name() const override { return "wendlandC2"; }
 };
 
+struct Pow3 : RBF {
+	inline double f(double r, double e) const override {
+		return r * r * r * e;
+	}
+	inline double df(double r, double e) const override {
+		return 3 * r * r * e; 
+	}
+	inline double ddf(double r, double e) const override {
+		return 6 * r * e;
+	}
+
+	inline std::string name() const override { return "pow3"; }
+};
+
+struct InverseMultiquadric : RBF {
+	inline double f(double r, double e) const override {
+		return 1. / std::sqrt(1 + e * e * r * r);
+	}
+	inline double df(double r, double e) const override {
+		return -e * e * r / std::pow(1 + e * e * r * r, 1.5); 
+	}
+	inline double ddf(double r, double e) const override {
+		return e * e * (2 * e * e * r * r - 1) / std::pow(1 + e * e * r * r, 2.5); 
+	}
+
+	inline std::string name() const override { return "inverse-multiquadric"; }
+};
+
+
 
 
 #endif
