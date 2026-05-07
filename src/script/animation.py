@@ -152,16 +152,13 @@ def main():
             ax.scatter(p["px"], p["py"],
                        s=90, c="gold", edgecolors="black", linewidths=0.8, zorder=5)
  
-            blen = math.sqrt(p["bx"]**2 + p["by"]**2)
-            if blen > 1e-6:
-                scale = 0.5 / blen
-                arr = FancyArrowPatch(
-                    (p["px"], p["py"]),
-                    (p["px"] + p["bx"] * scale, p["py"] + p["by"] * scale),
-                    arrowstyle="-|>", color="yellow",
-                    mutation_scale=14, linewidth=2, zorder=6
-                )
-                ax.add_patch(arr)
+            arr = FancyArrowPatch(
+                (p["px"], p["py"]),
+                (p["px"] + p["bx"], p["py"] + p["by"]),
+                arrowstyle="-|>", color="yellow",
+                mutation_scale=14, linewidth=2, zorder=6
+            )
+            ax.add_patch(arr)
  
         ax.set_title(f"Iteration {it}  [{idx+1}/{len(snapshots)}]",
                      color="white", fontsize=12, pad=8)
