@@ -171,7 +171,7 @@ void random_polygon(UM::PolyLine& pl, SDF& sdf, int nedge, int npoint, unsigned 
     }
 
     // SDF control points on circle around the polygon
-    const double Rp = 1.5;
+    const double Rp = 1.;
     const double anglep = 2 * std::numbers::pi / npoint;
 
     sdf.p.resize(npoint);

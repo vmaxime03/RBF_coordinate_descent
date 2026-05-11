@@ -29,10 +29,11 @@ struct SDF {
 
 	}
 
-	double distance(UM::vec2 pos) {
+	double distance(UM::vec2 pos, size_t without = -1) {
 		double t = 0.;
 
 		for (size_t i = 0; i < p.size(); ++i) {
+			if (i == without) continue;
 			t += contrib_dist_i(i, pos);
 				}
 		return t;
@@ -62,10 +63,11 @@ struct SDF {
 
 	}
 	
-	UM::vec2 gradient(UM::vec2 pos) {
+	UM::vec2 gradient(UM::vec2 pos, size_t without = -1) {
 		UM::vec2 grad(0., 0.);
 
 		for (size_t i = 0; i < p.size(); ++i) {
+			if (i == without) continue;
 			grad += contrib_grad_i(i, pos);	
 		
 		}
