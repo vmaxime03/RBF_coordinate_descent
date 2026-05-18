@@ -1,5 +1,5 @@
 ```shell
-make build 
+make build CXX=g++ CC=gcc
 
 # run the optimization
 make run
