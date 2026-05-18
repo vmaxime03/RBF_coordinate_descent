@@ -5,7 +5,7 @@
 #include "ultimaille/polyline.h"
 
 #include <fstream>
-void debug_sdf(SDF& sdf, double minx, double miny, double maxx, double maxy, const std::string& fname, int step = 100) {
+void sample_sdf(SDF& sdf, double minx, double miny, double maxx, double maxy, const std::string& fname, int step = 100) {
 	std::ofstream out(fname);
 	int w = step;
 	int h = step;
@@ -31,6 +31,13 @@ void export_polyline(UM::PolyLine& pl, const std::string& fname) {
 		out << f.x << "," << f.y << "," << t.x << "," << t.y << "\n";
 	}
 	out.close();
+}
+
+void export_sdf(SDF& sdf, const std::string& fname) {
+	std::ofstream f(fname);
+	for (size_t i = 0; i < sdf.p.size(); ++i)
+		f << sdf.p[i].x << "," << sdf.p[i].y << ","
+			<< sdf.beta[i].x << "," << sdf.beta[i].y << "\n";
 }
 
 #endif 
