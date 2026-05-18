@@ -3,6 +3,7 @@
 
 #include "rbf.hpp"
 #include "ultimaille/algebra/vec.h"
+#include <concepts>
 #include <cstddef>
 #include <sstream>
 #include <vector>
@@ -19,7 +20,15 @@ struct SDF {
 
 	std::unique_ptr<RBF> rbf;
 
-	SDF(std::unique_ptr<RBF> _rbf) : rbf(std::move(_rbf)) {};
+	explicit SDF(std::unique_ptr<RBF> _rbf) : rbf(std::move(_rbf)) {};
+
+	inline void add_func(UM::vec2 _p, double _alpha, UM::vec2 _beta, double _sigma) {
+		p.push_back(_p);
+		alpha.push_back(_alpha);
+		beta.push_back(_beta);
+		sigma.push_back(_sigma);
+	}
+
 
 	inline double contrib_dist_i(size_t i, UM::vec2 pos) {
 		double n = (pos - p[i]).norm();
@@ -29,10 +38,11 @@ struct SDF {
 
 	}
 
-	double distance(UM::vec2 pos) {
+	double distance(UM::vec2 pos, size_t without = -1) {
 		double t = 0.;
 
 		for (size_t i = 0; i < p.size(); ++i) {
+			if (i == without) continue;
 			t += contrib_dist_i(i, pos);
 				}
 		return t;
@@ -62,10 +72,11 @@ struct SDF {
 
 	}
 	
-	UM::vec2 gradient(UM::vec2 pos) {
+	UM::vec2 gradient(UM::vec2 pos, size_t without = -1) {
 		UM::vec2 grad(0., 0.);
 
 		for (size_t i = 0; i < p.size(); ++i) {
+			if (i == without) continue;
 			grad += contrib_grad_i(i, pos);	
 		
 		}
@@ -89,8 +100,6 @@ struct SDF {
 	json to_json() {
 		json j;
 		j["rbf"] = rbf->name();
-		j["param"] = sigma[0]; // TODO ? 
-
 		j["points"] = json::array();
 
 		for (size_t i = 0; i < p.size(); ++i) {

@@ -1,95 +1,89 @@
 fname = argv(){1};
 plname = argv(){2};
+sdfname = argv(){3};
 
 data = dlmread(fname, ',');
 
-w = size(data, 1);
-h = size(data, 2) / 5;
-
 X    = data(:, 1:5:end);
 Y    = data(:, 2:5:end);
-% distance
-Z    = data(:, 3:5:end);
-
-% gradient
+Zi    = data(:, 3:5:end);
 GX   = data(:, 4:5:end);
 GY   = data(:, 5:5:end);
 
+
+% log scale
+Z = sign(Zi) .* log1p(abs(Zi));
 
 minx = X(1,   1);
 maxx = X(1, end);
 miny = Y(1,   1);
 maxy = Y(end, 1);
 
-x = linspace(minx, maxx, size(Z, 1));
-y = linspace(miny, maxy, size(Z, 2));
+x = linspace(minx, maxx, size(Z, 2));
+y = linspace(miny, maxy, size(Z, 1));
 
-Zt = sign(Z) .* log1p(abs(Z)); % pour que les ligne de niveaux ne soit pas trop eloignées
 
-zmax = max(Zt(:));
-zmin = min(Zt(:));
+zmax = max(Z(:));
+zmin = min(Z(:));
+
+
+
+zfloor = zmax + 0.1;
 
 negative_lev = linspace(zmin, 0, 10)(1:end-1);
 positive_lev = linspace(0, zmax, 10)(2:end);
+levels = [negative_lev, positive_lev];
 
-levels =  [negative_lev, positive_lev];
+fig = figure();
 
-
-% SURFACE PLOT
-fig1 = figure();
-
-surf(Z);
-
-xlabel("x");
-ylabel("y");
-zlabel("f(x, y)");
-
-
-
-
-% CONTOUR PLOT
-fig2 = figure();
-
-contour(x, y, Zt, levels);
-
+% SURFACE
+surf(x, y, Z, 'EdgeAlpha', 0.1, 'FaceAlpha', 0.5);
 hold on;
-contour(x, y, Zt, [0 0], "r", "LineWidth", 2);
 
-colorbar;
-axis equal;
-
-colormap(cool);
-
-
-
+% CONTOUR LINES
+contour3(x, y, Z, levels, 'LineWidth', 1);
+contour3(x, y, Z, [0 0], 'r', 'LineWidth', 2);
 
 % GRADIENT FIELD
-
-norm_G = sqrt(GX.^2 + GY.^2);
-norm_G_safe = max(norm_G, 1e-12);
-
-GXn = GX ./ norm_G_safe;
-GYn = GY ./ norm_G_safe;
-
-% quiver(X, Y, GXn, GYn, 0.8);
-
 n = 6;
-quiver(X(1:n:end, 1:n:end), Y(1:n:end, 1:n:end), GX(1:n:end, 1:n:end), GY(1:n:end, 1:n:end), 0.8);
+quiver3(X(1:n:end, 1:n:end), Y(1:n:end, 1:n:end), zeros(size(X(1:n:end, 1:n:end))) + zfloor, GX(1:n:end, 1:n:end), GY(1:n:end, 1:n:end), zeros(size(GX(1:n:end, 1:n:end))), 0.8, 'b');
 
-
-hold on;
-contour(x, y, Zt, [0 0], "r", "LineWidth", 6);
-
-
-
+% POLYLINE
 pl = dlmread(plname, ',');
 for i = 1:size(pl, 1)
-  plot([pl(i,1), pl(i,3)], [pl(i,2), pl(i,4)], 'g-', 'LineWidth', 2);
+    plot3([pl(i,1), pl(i,3)], [pl(i,2), pl(i,4)], [zfloor, zfloor], 'g-', 'LineWidth', 2);
+end
+
+% POLYLINE NORMALS
+for i = 1:size(pl, 1)
+    % edge midpoint
+    mx = (pl(i,1) + pl(i,3)) / 2;
+    my = (pl(i,2) + pl(i,4)) / 2;
+    % edge direction
+    dx = pl(i,3) - pl(i,1);
+    dy = pl(i,4) - pl(i,2);
+
+    nx = -dy;
+    ny =  dx;
+    len = sqrt(nx^2 + ny^2);
+    nx = nx / len;
+    ny = ny / len;
+
+    quiver3(mx, my, zfloor, nx, ny, 0, 0.2, 'r', 'LineWidth', 1.5);
 end
 
 
+% POINTS AND BETAS
+sdfpts = dlmread(sdfname, ',');
+npts = size(sdfpts, 1);
+plot3(sdfpts(:,1), sdfpts(:,2), zeros(npts,1) + zfloor, 'ko', 'MarkerSize', 8, 'MarkerFaceColor', 'yellow');
+quiver3(sdfpts(:,1), sdfpts(:,2), zeros(npts,1) + zfloor, sdfpts(:,3), sdfpts(:,4), zeros(npts,1), 0.3, 'k', 'LineWidth', 2);
 
+colormap(cool);
+colorbar;
 axis equal;
-xlabel("x"); ylabel("y");
+xlabel('x'); ylabel('y'); zlabel('f(x,y)');
+
+view(0, 90);
 
 pause();

@@ -16,13 +16,58 @@
 
 #include "sdf.hpp"
 
+namespace SDFPointInit {
+	void circle(SDF& sdf, int npoint, double R = 1.0, double offset = 0., double alpha = 1., double sigma = 1.) { 
+
+		const double anglep = 2 * std::numbers::pi / npoint;
+
+		sdf.p.resize(npoint);
+		sdf.alpha.resize(npoint);
+		sdf.beta.resize(npoint);
+		sdf.sigma.resize(npoint);
+
+		for (int i = 0; i < npoint; ++i) {
+			UM::vec2 p = {R * cos(i * anglep + offset), R * sin(i * anglep + offset)};
+			sdf.p    [i] = p;
+			sdf.alpha[i] = alpha;
+			sdf.beta [i] = -p.normalized();
+			sdf.sigma[i] = sigma;
+		}
+	}
+
+	// TODO
+	void shape(SDF& sdf, UM::PolyLine& pl, double alpha = 1., double sigma = 1.) {
+
+		int npoint = pl.nedges();
+
+		sdf.p.resize(npoint);
+		sdf.alpha.resize(npoint);
+		sdf.beta.resize(npoint);
+		sdf.sigma.resize(npoint);
+
+		int i = 0;
+
+		for (const auto& e : pl.iter_edges()) {
+
+			auto v = e.to().pos() - e.from().pos();
+
+			sdf.p    [i] = (e.from().pos() + (v / 2)).xy();
+			sdf.alpha[i] = alpha;
+			sdf.beta [i] = UM::vec2(-v.y, v.x).normalized();
+			sdf.sigma[i] = sigma;
+
+			++i;
+		}
+
+	}
+}
 
 namespace PolyLineGenerator {
 
-void regular_polygon(UM::PolyLine& pl, SDF& sdf, int nedge, int npoint) {
+void regular_polygon(UM::PolyLine& pl, int nedge) {
 	assert(nedge > 2);
 
-	const double R = 1.5;
+	const double R = 1.;
 	const double angle = 2 * std::numbers::pi / nedge;
 
 	pl.points.create_points(nedge);
@@ -31,33 +76,16 @@ void regular_polygon(UM::PolyLine& pl, SDF& sdf, int nedge, int npoint) {
 
 
 	for (auto i = 0; i < nedge; ++i) {
-		UM::vec2 p = {R * cos(i * angle), R * sin(i * angle)};
+		UM::vec2 p = {R * cos(i * angle), R * sin(i * angle)}; // clockwise for normal pointing outward
 		pl.points[i] = p.xy0();	
 		pl.vert(i, 0) = i;
 		pl.vert(i, 1) = (i+1)%nedge;
 	}
-
-	const double Rp = R;
-	const double anglep = 2 * std::numbers::pi / npoint;
-	
-	sdf.p.resize	(npoint);
-	sdf.alpha.resize(npoint);
-	sdf.beta.resize (npoint);
-	sdf.sigma.resize(npoint);
-
-	for (auto i = 0; i < npoint; ++i) {
-		auto p = UM::vec2(Rp * cos(i * anglep + angle / 2), Rp * sin(i * anglep + angle / 2));
-		sdf.p		[i] = p;
-		sdf.alpha	[i] = 1;
-		sdf.beta	[i] = p.normalized();
-		sdf.sigma	[i] = 1;
-	}
-
 	pl.connect();
 }
 
 
-void read_from_file(UM::PolyLine& pl, SDF& sdf, const std::string& fname, int npoint) {
+void read_from_file(UM::PolyLine& pl, const std::string& fname) {
 	UM::Triangles m;
 	UM::read_by_extension(fname, m);
 	m.connect();
@@ -117,29 +145,13 @@ void read_from_file(UM::PolyLine& pl, SDF& sdf, const std::string& fname, int np
 		p.y = ((p.y - cy) / range) * b;
 	}
 
-	const double Rp = 1.0;
-	const double anglep = 2 * std::numbers::pi / npoint;
-	
-	sdf.p.resize	(npoint);
-	sdf.alpha.resize(npoint);
-	sdf.beta.resize (npoint);
-	sdf.sigma.resize(npoint);
-
-	for (auto i = 0; i < npoint; ++i) {
-		auto p = UM::vec2(Rp * cos(i * anglep), Rp * sin(i * anglep));
-		sdf.p		[i] = p;
-		sdf.alpha	[i] = 1;
-		sdf.beta	[i] = p.normalized();
-		sdf.sigma	[i] = 1;
-	}
-
 	pl.connect();
 
 }
 
 
 // claude
-void random_polygon(UM::PolyLine& pl, SDF& sdf, int nedge, int npoint, unsigned int seed = 42) {
+void random_polygon(UM::PolyLine& pl, int nedge, unsigned int seed = 42) {
     assert(nedge > 2);
 
     std::mt19937 rng(seed);
@@ -170,22 +182,6 @@ void random_polygon(UM::PolyLine& pl, SDF& sdf, int nedge, int npoint, unsigned 
         pl.vert(i, 1) = (i + 1) % nedge;
     }
 
-    // SDF control points on circle around the polygon
-    const double Rp = 1.5;
-    const double anglep = 2 * std::numbers::pi / npoint;
-
-    sdf.p.resize(npoint);
-    sdf.alpha.resize(npoint);
-    sdf.beta.resize(npoint);
-    sdf.sigma.resize(npoint);
-
-    for (int i = 0; i < npoint; ++i) {
-        UM::vec2 p = {Rp * cos(i * anglep), Rp * sin(i * anglep)};
-        sdf.p    [i] = p;
-        sdf.alpha[i] = 1;
-        sdf.beta [i] = p.normalized();
-        sdf.sigma[i] = 1;
-    }
 
     pl.connect();
 }
