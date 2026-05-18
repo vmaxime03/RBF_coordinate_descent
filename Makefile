@@ -1,8 +1,8 @@
 .PHONY: clean anim gif octave build run correlation
 
 
-CC  ?= gcc-15
-CXX ?= g++-15
+CC  ?= gcc
+CXX ?= g++
 
 build:
 	mkdir -p build
