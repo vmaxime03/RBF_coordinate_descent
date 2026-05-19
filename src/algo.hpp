@@ -8,7 +8,9 @@
 #include "ultimaille/polyline.h"
 #include "ultimaille/sparse/least_squares.h"
 #include "ultimaille/sparse/linexpr.h"
+#include <atomic>
 #include <cfloat>
+#include <csignal>
 #include <fstream>
 #include <vector>
 
@@ -58,6 +60,7 @@ namespace sdffitting { // TODO
 
 		double ADD_POINT_ERR_THRESHOLD = 5.;	
 
+		double default_sigma_add = 1.;
 
 		void resolve_ls() {
 			// LEAST SQUARE
@@ -195,11 +198,16 @@ namespace sdffitting { // TODO
 		}
 
 		void run_loop(size_t max_it, size_t snapshot, const std::string& output_dir, std::function<bool()> loop_step) {
+
+			static std::atomic<bool> interupted{false};
+			auto prev_handler = std::signal(SIGINT, [](int) { interupted.store(true); });
+
+
 			bool terminated = false;
 			for (size_t it = 0; it < max_it; ++it) {
 
 				// SNAPSHOT OUTPUT	
-				if (it % (max_it / snapshot) == 0 || terminated) {
+				if (it % (max_it / snapshot) == 0 || terminated || interupted.load()) {
 					double total_err = error_total();
 					std::cout << it << ": err : " << total_err << "\t"  << sdf.to_string() << std::endl;
 					std::ofstream(output_dir + std::to_string(it) + "sdf.json") << sdf.to_json().dump(2);
@@ -209,9 +217,15 @@ namespace sdffitting { // TODO
 					std::cout << "Terminated in " << it << " iterations" << std::endl;
 					break;
 				}
+				if (interupted.load()) {
+					std::cout << "interupted at iteration" << it << std::endl; 
+					break;
+				}
 
 				terminated = loop_step();
 			}
+
+			std::signal(SIGINT, prev_handler);
 
 			// OUTPUT
 			export_polyline(pl, output_dir + "polyline.csv");
@@ -259,7 +273,7 @@ namespace sdffitting { // TODO
 		// TODO
 		void fit_add_point(size_t max_it, size_t snapshot, const std::string& output_dir) {
 
-			sdf.add_func(samples[0].first, 1., samples[0].second, 1.);
+			sdf.add_func(samples[0].first, 1., samples[0].second, default_sigma_add);
 
 			run_loop(max_it, snapshot, output_dir, 
 					[&]() {	
@@ -278,7 +292,7 @@ namespace sdffitting { // TODO
 						double err = error_total(&idx);
 
 						if (err > ADD_POINT_ERR_THRESHOLD) {
-							sdf.add_func(samples[idx].first, 1, samples[idx].second, 1.);
+							sdf.add_func(samples[idx].first, 1, samples[idx].second, default_sigma_add);
 							terminated = false;
 						}
 					}
@@ -293,7 +307,7 @@ namespace sdffitting { // TODO
 		void fit_moving_add_points(size_t max_it, size_t snapshot, const std::string& output_dir) {
 
 			double last_add_err = DBL_MAX;
-			sdf.add_func(samples[0].first, 1., samples[0].second, 1.);
+			sdf.add_func(samples[0].first, 1., samples[0].second, default_sigma_add);
 
 
 			run_loop(max_it, snapshot, output_dir, 
@@ -316,7 +330,7 @@ namespace sdffitting { // TODO
 
 							if (err > ADD_POINT_ERR_THRESHOLD && last_add_err - err > ADD_POINT_ERR_THRESHOLD) {
 								last_add_err = err;
-								sdf.add_func(samples[idx].first, 1, samples[idx].second, 1.);
+								sdf.add_func(samples[idx].first, 1, samples[idx].second, default_sigma_add);
 								terminated = false;
 							}
 						}
@@ -419,10 +433,10 @@ namespace sdffitting { // TODO
 					});
 		}
 
-		void fit_adaptative_step_moving_add_points(size_t max_it, size_t snapshot, const std::string& output_dir) {
+		void fit_adaptative_step_moving_add_points(size_t max_it, size_t snapshot, const std::string& output_dir)  {
 
 			double last_add_err = DBL_MAX;
-			sdf.add_func(samples[0].first, 1., samples[0].second, 1.);
+			sdf.add_func(samples[0].first, 1., samples[0].second, default_sigma_add);
 
 			std::vector<double> steps_sigma;
 			std::vector<double> steps_px;
@@ -445,9 +459,9 @@ namespace sdffitting { // TODO
 					size_t idx;
 					double err = error_total(&idx);
 
-					if (err > ADD_POINT_ERR_THRESHOLD && last_add_err - err > ADD_POINT_ERR_THRESHOLD) {
+					if (err > ADD_POINT_ERR_THRESHOLD) {
 					last_add_err = err;
-					sdf.add_func(samples[idx].first, 1, samples[idx].second, 1.);
+					sdf.add_func(samples[idx].first, 1, samples[idx].second, default_sigma_add);
 
 					steps_sigma.push_back(step_sigma);
 					steps_px.push_back(step_point);

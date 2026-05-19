@@ -1,4 +1,6 @@
 #include "ultimaille/polyline.h"
+#include <cfloat>
+#include <csignal>
 #include <utility>
 #include "rbf.hpp"
 #include "test_init.hpp"
@@ -9,6 +11,7 @@ using namespace UM;
 
 int main(int argc, char** argv) {
 
+
 	const std::string output_dir = OUTPUT_DIR + std::string("test/");
 	std::filesystem::remove_all(output_dir);
 	std::filesystem::create_directories(output_dir);
@@ -16,7 +19,7 @@ int main(int argc, char** argv) {
 
 
 	PolyLine pl;
-	auto rbf = std::make_unique<Gaussian>();
+	auto rbf = std::make_unique<InverseMultiquadric>();
 	SDF sdf(std::move(rbf));
 
 
@@ -44,11 +47,32 @@ int main(int argc, char** argv) {
 	
 
 
-	//PolyLineGenerator::regular_polygon(pl, 3);
 
-	auto algo = sdffitting::Fitter(pl, sdf, sdffitting::compute_samples_normals(pl, 3));
+	auto algo = sdffitting::Fitter(pl, sdf, sdffitting::compute_samples_normals(pl, 1));
 
 	algo.step_sigma = 0.01;
+
+	algo.step_point = 0.1;
+
+
+	/*
+	algo.lb_sigma = 0.1;
+	algo.ub_sigma = 3.;
+
+	algo.lb_point = -1.5;
+	algo.ub_point = 1.5;
+	*/
+
+	algo.lb_sigma = -DBL_MAX;
+	algo.ub_sigma = DBL_MAX;
+	algo.lb_point = -DBL_MAX;
+	algo.ub_point = DBL_MAX;
+
+
+	algo.ADD_POINT_ERR_THRESHOLD = 1.;
+
+	algo.default_sigma_add = 3.;
+
 
 	//algo.fit(100, 100, output_dir);
 	//algo.fit_moving_points(500, 100, output_dir);
@@ -57,6 +81,6 @@ int main(int argc, char** argv) {
 
 	//algo.fit_adaptative_step(500, 500, output_dir);
 	//algo.fit_adaptative_step_moving_points(500, 100, output_dir);
-	algo.fit_adaptative_step_moving_add_points(1000, 100, output_dir);
+	algo.fit_adaptative_step_moving_add_points(4000, 200, output_dir);
 	return 0;
 }

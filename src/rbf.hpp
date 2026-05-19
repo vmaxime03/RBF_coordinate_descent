@@ -52,7 +52,7 @@ struct WendlandC2 : RBF {
 
     inline std::string name() const override { return "wendlandC2"; }
 };
-
+/*
 struct Pow3 : RBF {
 	inline double f(double r, double e) const override {
 		return r * r * r * e;
@@ -66,7 +66,7 @@ struct Pow3 : RBF {
 
 	inline std::string name() const override { return "pow3"; }
 };
-
+*/
 struct InverseMultiquadric : RBF {
 	inline double f(double r, double e) const override {
 		return 1. / std::sqrt(1 + e * e * r * r);
