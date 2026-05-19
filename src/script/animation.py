@@ -160,7 +160,7 @@ def main():
             )
             ax.add_patch(arr)
  
-        ax.set_title(f"Iteration {it}  [{idx+1}/{len(snapshots)}]",
+        ax.set_title(f"Iteration {it}  [{idx+1}/{len(snapshots)}], {len(data["points"])} points",
                      color="white", fontsize=12, pad=8)
  
  

@@ -26,8 +26,6 @@ y = linspace(miny, maxy, size(Z, 1));
 zmax = max(Z(:));
 zmin = min(Z(:));
 
-
-
 zfloor = zmax + 0.1;
 
 negative_lev = linspace(zmin, 0, 10)(1:end-1);
@@ -46,15 +44,18 @@ contour3(x, y, Z, [0 0], 'r', 'LineWidth', 2);
 
 % GRADIENT FIELD
 n = 6;
-quiver3(X(1:n:end, 1:n:end), Y(1:n:end, 1:n:end), zeros(size(X(1:n:end, 1:n:end))) + zfloor, GX(1:n:end, 1:n:end), GY(1:n:end, 1:n:end), zeros(size(GX(1:n:end, 1:n:end))), 0.8, 'b');
+hGrad = quiver3(X(1:n:end, 1:n:end), Y(1:n:end, 1:n:end), zeros(size(X(1:n:end, 1:n:end))) + zfloor, GX(1:n:end, 1:n:end), GY(1:n:end, 1:n:end), zeros(size(GX(1:n:end, 1:n:end))), 0.8, 'b');
 
 % POLYLINE
 pl = dlmread(plname, ',');
+hPoly = [];
 for i = 1:size(pl, 1)
-    plot3([pl(i,1), pl(i,3)], [pl(i,2), pl(i,4)], [zfloor, zfloor], 'g-', 'LineWidth', 2);
+    h = plot3([pl(i,1), pl(i,3)], [pl(i,2), pl(i,4)], [zfloor, zfloor], 'g-', 'LineWidth', 2);
+    hPoly = [hPoly, h];
 end
 
 % POLYLINE NORMALS
+hNormals = [];
 for i = 1:size(pl, 1)
     % edge midpoint
     mx = (pl(i,1) + pl(i,3)) / 2;
@@ -69,15 +70,15 @@ for i = 1:size(pl, 1)
     nx = nx / len;
     ny = ny / len;
 
-    quiver3(mx, my, zfloor, nx, ny, 0, 0.2, 'r', 'LineWidth', 1.5);
+    h = quiver3(mx, my, zfloor, nx, ny, 0, 0.2, 'r', 'LineWidth', 1.5);
+    hNormals = [hNormals, h];
 end
-
 
 % POINTS AND BETAS
 sdfpts = dlmread(sdfname, ',');
 npts = size(sdfpts, 1);
-plot3(sdfpts(:,1), sdfpts(:,2), zeros(npts,1) + zfloor, 'ko', 'MarkerSize', 8, 'MarkerFaceColor', 'yellow');
-quiver3(sdfpts(:,1), sdfpts(:,2), zeros(npts,1) + zfloor, sdfpts(:,3), sdfpts(:,4), zeros(npts,1), 0.3, 'k', 'LineWidth', 2);
+hSdfPts  = plot3(sdfpts(:,1), sdfpts(:,2), zeros(npts,1) + zfloor, 'ko', 'MarkerSize', 8, 'MarkerFaceColor', 'yellow');
+hSdfVecs = quiver3(sdfpts(:,1), sdfpts(:,2), zeros(npts,1) + zfloor, sdfpts(:,3), sdfpts(:,4), zeros(npts,1), 0.3, 'k', 'LineWidth', 2);
 
 colormap(cool);
 colorbar;
@@ -86,4 +87,6 @@ xlabel('x'); ylabel('y'); zlabel('f(x,y)');
 
 view(0, 90);
 
-pause();
+
+
+

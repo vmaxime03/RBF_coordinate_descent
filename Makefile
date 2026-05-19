@@ -1,8 +1,9 @@
-.PHONY: clean anim gif octave build run correlation
-
+.PHONY: clean anim gif octave build run correlation surface save
 
 CC  ?= gcc
 CXX ?= g++
+
+DATA ?= build/src/output/test
 
 build:
 	mkdir -p build
@@ -10,23 +11,26 @@ build:
 	$(MAKE) -C build
 
 run:
-	cd build/src && ./main 
+	cd build/src && ./main
 
-anim: 
-	cd build/src/script && python3 animation.py ./../output/test/
+save:
+	cp -r $(DATA) ./output/save_$(shell date +%Y%m%d_%H%M%S)
 
-gif: 
+anim:
+	cd build/src/script && python3 animation.py ./../../../$(DATA)/
+
+gif:
 	mkdir -p output
-	cd build/src/script && python3 animation.py ./../output/test/ ./../../../output/anim.gif
+	cd build/src/script && python3 animation.py ./../../../$(DATA)/ ./../../../output/anim.gif
 
-octave: 
-	cd build/src/script && octave --no-gui debug.m ./../output/test/sdf.csv ./../output/test/polyline.csv ./../output/test/sdf_params.csv
+octave:
+	cd build/src/script && octave debug.m ./../../../$(DATA)/sdf.csv ./../../../$(DATA)/polyline.csv ./../../../$(DATA)/sdf_params.csv
 
-correlation: 
-	cd build/src/script && python3 correlation.py ./../output/test/
+surface:
+	cd build/src/script && octave surface_plot.m ./../../../$(DATA)/sdf.csv ./../../../$(DATA)/polyline.csv ./../../../$(DATA)/sdf_params.csv
 
-
-
+correlation:
+	cd build/src/script && python3 correlation.py ./../../../$(DATA)/
 
 
 clean:
