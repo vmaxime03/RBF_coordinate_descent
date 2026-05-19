@@ -21,9 +21,10 @@ int main(int argc, char** argv) {
 
 
 
-	int n = 15;
-	PolyLineGenerator::regular_polygon(pl, n);
-	SDFPointInit::shape(sdf, pl, 0.5, 0.5);
+	//int n = 3;
+	//PolyLineGenerator::regular_polygon(pl, n);
+	
+	//SDFPointInit::shape(sdf, pl, 1., 1.5);
 	// SDFPointInit::circle(sdf, n, 1., std::numbers::pi / n);
 
 	//PolyLineGenerator::random_polygon(pl, n);
@@ -38,21 +39,24 @@ int main(int argc, char** argv) {
 	//SDFPointInit::circle(sdf, 3, 1., std::numbers::pi / 3);
 
 	
-	//PolyLineGenerator::read_from_file(pl, input_dir + "duck.geogram");
+	PolyLineGenerator::read_from_file(pl, input_dir + "duck.geogram");
 	// SDFPointInit::shape(sdf, pl);
 	
 
 
 	//PolyLineGenerator::regular_polygon(pl, 3);
 
-	auto algo = sdffitting::Fitter(pl, sdf, sdffitting::compute_samples_normals(pl, 1));
+	auto algo = sdffitting::Fitter(pl, sdf, sdffitting::compute_samples_normals(pl, 3));
 
+	algo.step_sigma = 0.01;
 
-
-	algo.fit(5000, 100, output_dir);
+	//algo.fit(100, 100, output_dir);
 	//algo.fit_moving_points(500, 100, output_dir);
 	//algo.fit_add_point(5000, 100, output_dir);
 	//algo.fit_moving_add_points(5000, 500, output_dir);
 
+	//algo.fit_adaptative_step(500, 500, output_dir);
+	//algo.fit_adaptative_step_moving_points(500, 100, output_dir);
+	algo.fit_adaptative_step_moving_add_points(1000, 100, output_dir);
 	return 0;
 }

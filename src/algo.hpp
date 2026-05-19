@@ -224,11 +224,10 @@ namespace sdffitting { // TODO
 			run_loop(max_it, snapshot, output_dir, 
 					[&]() {	
 						bool terminated = true;
+						double ce = error_total();
 						for (size_t i = 0; i < sdf.p.size(); ++i) {
 
-						double ce = error_total();
-
-						terminated &= !coordinate_descent(sdf.sigma[i],  step_sigma, lb_sigma, ub_sigma, ce);
+							terminated &= !coordinate_descent(sdf.sigma[i],  step_sigma, lb_sigma, ub_sigma, ce);
 
 						}
 						return terminated;
@@ -241,15 +240,14 @@ namespace sdffitting { // TODO
 			run_loop(max_it, snapshot, output_dir, 
 					[&]() {	
 						bool terminated = true;
+						double ce = error_total();
 
 						for (size_t i = 0; i < sdf.p.size(); ++i) {
 
-						double ce = error_total();
+							terminated &= !coordinate_descent(sdf.sigma[i],  step_sigma, lb_sigma, ub_sigma, ce);
 
-						terminated &= !coordinate_descent(sdf.sigma[i],  step_sigma, lb_sigma, ub_sigma, ce);
-
-						terminated &= !coordinate_descent(sdf.p[i].x,  step_point, lb_point, ub_point, ce);
-						terminated &= !coordinate_descent(sdf.p[i].y,  step_point, lb_point, ub_point, ce);
+							terminated &= !coordinate_descent(sdf.p[i].x,  step_point, lb_point, ub_point, ce);
+							terminated &= !coordinate_descent(sdf.p[i].y,  step_point, lb_point, ub_point, ce);
 
 						}
 						return terminated;
@@ -266,11 +264,10 @@ namespace sdffitting { // TODO
 			run_loop(max_it, snapshot, output_dir, 
 					[&]() {	
 					bool terminated = true;
+					double ce = error_total();
 
 
 					for (size_t i = 0; i < sdf.p.size(); ++i) {
-
-						double ce = error_total();
 
 						terminated &= !coordinate_descent(sdf.sigma[i],  step_sigma, lb_sigma, ub_sigma, ce);
 
@@ -301,27 +298,163 @@ namespace sdffitting { // TODO
 
 			run_loop(max_it, snapshot, output_dir, 
 					[&]() {	
-					bool terminated = true;
-					for (size_t i = 0; i < sdf.p.size(); ++i) {
-
+						bool terminated = true;
 						double ce = error_total();
+						for (size_t i = 0; i < sdf.p.size(); ++i) {
 
-						terminated &= !coordinate_descent(sdf.sigma[i],  step_sigma, lb_sigma, ub_sigma, ce);
 
-						terminated &= !coordinate_descent(sdf.p[i].x,  step_point, lb_point, ub_point, ce);
-						terminated &= !coordinate_descent(sdf.p[i].y,  step_point, lb_point, ub_point, ce);
+							terminated &= !coordinate_descent(sdf.sigma[i],  step_sigma, lb_sigma, ub_sigma, ce);
 
+							terminated &= !coordinate_descent(sdf.p[i].x,  step_point, lb_point, ub_point, ce);
+							terminated &= !coordinate_descent(sdf.p[i].y,  step_point, lb_point, ub_point, ce);
+
+						}
+
+						if (terminated) {
+							size_t idx;
+							double err = error_total(&idx);
+
+							if (err > ADD_POINT_ERR_THRESHOLD && last_add_err - err > ADD_POINT_ERR_THRESHOLD) {
+								last_add_err = err;
+								sdf.add_func(samples[idx].first, 1, samples[idx].second, 1.);
+								terminated = false;
+							}
+						}
+						return terminated;
+					});
+
+		}
+
+
+		// ADAPTATIVE STEP FITTER
+
+		double EXPAND = 1.2;
+		double SHRINK = 0.5;
+		double MIN_STEP = 0.001;
+
+
+
+		bool coordinate_descent_adaptative(
+				double& var, 
+				double& step, 
+				double lb, double ub, 
+				double& ce
+				) {
+				
+			const double old = var;
+			const auto old_alpha = sdf.alpha;
+			const auto old_betas = sdf.beta;
+
+			// try +
+			var = std::clamp(old + step, lb, ub);
+			resolve_ls();
+			double errp = error_total();
+
+			const auto alphap = sdf.alpha;
+			const auto betap = sdf.beta;
+
+
+			// try -
+			var = std::clamp(old - step, lb, ub);
+			resolve_ls();
+			double errm = error_total();
+
+			double best_err = std::min(errp, errm);
+
+
+			// improvment case 
+			if (best_err < ce) {
+
+				if (errp <= errm) {
+					var = std::clamp(old + step, lb, ub);
+					sdf.alpha = alphap;
+					sdf.beta = betap;
+				}
+
+				ce = best_err;
+				step = std::min(step * EXPAND, (ub - lb));
+				return true;
+			}
+
+			// no improvment 
+			var = old;
+			sdf.alpha = old_alpha;
+			sdf.beta = old_betas;
+
+			step = std::max(step * SHRINK, MIN_STEP);
+			return step > MIN_STEP;
+		}
+
+		void fit_adaptative_step(size_t max_it, size_t snapshot, const std::string& output_dir) {
+			std::vector<double> steps_sigma;
+			steps_sigma.assign(sdf.p.size(), step_sigma);
+
+			run_loop(max_it, snapshot, output_dir, [&]() {
+					bool terminated = true;
+					double ce = error_total();
+					for (size_t i = 0; i < sdf.p.size(); ++i) {
+					terminated &= !coordinate_descent_adaptative(sdf.sigma[i], steps_sigma[i], lb_sigma, ub_sigma, ce);
+					}
+					return terminated;
+					});
+		}
+
+		void fit_adaptative_step_moving_points(size_t max_it, size_t snapshot, const std::string& output_dir) {
+			std::vector<double> steps_sigma;
+			std::vector<double> steps_px;
+			std::vector<double> steps_py;
+			steps_sigma.assign(sdf.p.size(), step_sigma);
+			steps_px.assign(sdf.p.size(), step_point);
+			steps_py.assign(sdf.p.size(), step_point);
+
+			run_loop(max_it, snapshot, output_dir, [&]() {
+					bool terminated = true;
+					double ce = error_total();
+					for (size_t i = 0; i < sdf.p.size(); ++i) {
+					terminated &= !coordinate_descent_adaptative(sdf.sigma[i], steps_sigma[i], lb_sigma, ub_sigma, ce);
+					terminated &= !coordinate_descent_adaptative(sdf.p[i].x, steps_px[i], lb_point, ub_point, ce);
+					terminated &= !coordinate_descent_adaptative(sdf.p[i].y, steps_py[i], lb_point, ub_point, ce);
+					}
+					return terminated;
+					});
+		}
+
+		void fit_adaptative_step_moving_add_points(size_t max_it, size_t snapshot, const std::string& output_dir) {
+
+			double last_add_err = DBL_MAX;
+			sdf.add_func(samples[0].first, 1., samples[0].second, 1.);
+
+			std::vector<double> steps_sigma;
+			std::vector<double> steps_px;
+			std::vector<double> steps_py;
+			steps_sigma.assign(sdf.p.size(), step_sigma);
+			steps_px.assign(sdf.p.size(), step_point);
+			steps_py.assign(sdf.p.size(), step_point);
+
+			run_loop(max_it, snapshot, output_dir, 
+					[&]() {	
+					bool terminated = true;
+					double ce = error_total();
+					for (size_t i = 0; i < sdf.p.size(); ++i) {
+					terminated &= !coordinate_descent_adaptative(sdf.sigma[i], steps_sigma[i], lb_sigma, ub_sigma, ce);
+					terminated &= !coordinate_descent_adaptative(sdf.p[i].x, steps_px[i], lb_point, ub_point, ce);
+					terminated &= !coordinate_descent_adaptative(sdf.p[i].y, steps_py[i], lb_point, ub_point, ce);
 					}
 
 					if (terminated) {
-						size_t idx;
-						double err = error_total(&idx);
+					size_t idx;
+					double err = error_total(&idx);
 
-						if (err > ADD_POINT_ERR_THRESHOLD && last_add_err - err > ADD_POINT_ERR_THRESHOLD) {
-							last_add_err = err;
-							sdf.add_func(samples[idx].first, 1, samples[idx].second, 1.);
-							terminated = false;
-						}
+					if (err > ADD_POINT_ERR_THRESHOLD && last_add_err - err > ADD_POINT_ERR_THRESHOLD) {
+					last_add_err = err;
+					sdf.add_func(samples[idx].first, 1, samples[idx].second, 1.);
+
+					steps_sigma.push_back(step_sigma);
+					steps_px.push_back(step_point);
+					steps_py.push_back(step_point);
+					
+					terminated = false;
+					}
 					}
 					return terminated;
 					});
