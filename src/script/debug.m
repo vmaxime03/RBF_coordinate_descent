@@ -87,6 +87,7 @@ xlabel('x'); ylabel('y'); zlabel('f(x,y)');
 
 view(0, 90);
 
+pause();
 
 
 
