@@ -15,6 +15,7 @@
 
 
 #include "sdf.hpp"
+#include "ultimaille/primitive_geometry.h"
 
 namespace SDFPointInit {
 	void circle(SDF& sdf, int npoint, double R = 1.0, double offset = 0., double alpha = 1., double sigma = 1.) { 
@@ -60,6 +61,45 @@ namespace SDFPointInit {
 		}
 
 	}
+
+
+	// Equally spaced point along the polyline 
+
+	void equaly_spaced_shape(SDF& sdf, UM::PolyLine& pl, int n, double alpha = 1., double sigma = 1.) {
+
+		double total = 0.0;
+		for (const auto& e : pl.iter_edges()) {
+			UM::Segment3 s = e;
+			total += s.length();
+		}
+
+		if (n <= 0 || total <= 0.0) return;
+
+		double step = total / double(n);
+		double traveled = step/2; // offset
+		double next = step + step/2;
+
+		for (const auto& e : pl.iter_edges()) {
+			UM::Segment3 s = e;
+			auto v = s.xy().vector();
+			double len = s.length();
+
+			while (next <= traveled + len) {
+				double t = (next - traveled) / len;
+				sdf.add_func(
+						s.a.xy() + t * v,
+						alpha,
+						UM::vec2(-v.y, v.x).normalized(),
+						sigma
+						);
+				next += step;
+			}
+
+			traveled += len;
+		}
+
+	}
+
 }
 
 namespace PolyLineGenerator {
@@ -187,117 +227,7 @@ void random_polygon(UM::PolyLine& pl, int nedge, unsigned int seed = 42) {
 }
 
 
-// 1 line
-void line_1(UM::PolyLine& pl, SDF& sdf) {
-	pl.points.create_points(2);
-	pl.create_edges(1);
-
-	pl.points[0] = UM::vec2(-1., 0.).xy0();
-	pl.points[1] = UM::vec2(1., 0.).xy0();
-
-	pl.vert(0, 0) = 0;
-	pl.vert(0, 1) = 1;
-
-	pl.connect();
-
-	int t = 1;
-
-	sdf.p.resize(t);
-	sdf.alpha.resize(t);
-	sdf.beta.resize(t);
-	sdf.sigma.resize(t);
-
-	--t;
-	sdf.p		[t] = {-1, 0};
-	sdf.alpha	[t] = 1;
-	sdf.beta	[t] = {1, 0};
-	sdf.sigma	[t] = 1;
-
-
 }
 
-// 2 line
-void line_2(UM::PolyLine& pl, SDF& sdf) {
-	pl.points.create_points(3);
-	pl.create_edges(2);
-
-	pl.points[0] = UM::vec2(-1., 1.).xy0();
-	pl.points[1] = UM::vec2(0., 0.).xy0();
-	pl.points[2] = UM::vec2(1., 1.).xy0();
-
-	pl.vert(0, 0) = 0;
-	pl.vert(0, 1) = 1;
-	pl.vert(1, 0) = 1;
-	pl.vert(1, 1) = 2;
-
-	pl.connect();
-
-	int t = 2;
-
-	sdf.p.resize(t);
-	sdf.alpha.resize(t);
-	sdf.beta.resize(t);
-	sdf.sigma.resize(t);
-
-	--t;
-	sdf.p		[t] = {-1, 0};
-	sdf.alpha	[t] = 1;
-	sdf.beta	[t] = {1, 0};
-	sdf.sigma	[t] = 1;
-
-	--t;
-	sdf.p		[t] = {1, 0};
-	sdf.alpha	[t] = 1;
-	sdf.beta	[t] = {-1, 0};
-	sdf.sigma	[t] = 1;
-}
-
-// 3 line 
-void line_3(UM::PolyLine& pl, SDF& sdf) {
-	pl.points.create_points(4);
-	pl.create_edges(3);
-
-	pl.points[0] = UM::vec2(-1., -1.).xy0();
-	pl.points[1] = UM::vec2(-1., 1.).xy0();
-	pl.points[2] = UM::vec2(1., 1.).xy0();
-	pl.points[3] = UM::vec2(1., -1.).xy0();
-
-	pl.vert(0, 0) = 0;
-	pl.vert(0, 1) = 1;
-	pl.vert(1, 0) = 1;
-	pl.vert(1, 1) = 2;
-	pl.vert(2, 0) = 2;
-	pl.vert(2, 1) = 3;
-
-	pl.connect();
-
-	int t = 3;
-
-	sdf.p.resize(t);
-	sdf.alpha.resize(t);
-	sdf.beta.resize(t);
-	sdf.sigma.resize(t);
-
-	--t;
-	sdf.p		[t] = {-1, 0};
-	sdf.alpha	[t] = 1;
-	sdf.beta	[t] = {-1, 0};
-	sdf.sigma	[t] = 1;
-
-	--t;
-	sdf.p		[t] = {1, 0};
-	sdf.alpha	[t] = 1;
-	sdf.beta	[t] = {1, 0};
-	sdf.sigma	[t] = 1;
-	
-	--t;
-	sdf.p		[t] = {0, 1};
-	sdf.alpha	[t] = 1;
-	sdf.beta	[t] = {0, 1};
-	sdf.sigma	[t] = 1;
-
-
-}
-}
 
 #endif
