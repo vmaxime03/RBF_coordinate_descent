@@ -135,15 +135,16 @@ def main():
         ax.plot(px, py, color="lime", linewidth=2, zorder=4)
 
         # normals
-        for mx, my, nx, ny in normals:
-            arr = FancyArrowPatch(
-                (mx, my),
-                (mx + nx * 0.15, my + ny * 0.15),
-                arrowstyle="-|>", color="cyan",
-                mutation_scale=8, linewidth=1.2, zorder=5,
-                alpha=0.8,
-            )
-            ax.add_patch(arr)
+       #
+       #for mx, my, nx, ny in normals:
+       #    arr = FancyArrowPatch(
+       #        (mx, my),
+       #        (mx + nx * 0.15, my + ny * 0.15),
+       #        arrowstyle="-|>", color="cyan",
+       #        mutation_scale=8, linewidth=1.2, zorder=5,
+       #        alpha=0.8,
+       #    )
+       #    ax.add_patch(arr)
 
 
          
