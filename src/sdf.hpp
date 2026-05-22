@@ -114,6 +114,20 @@ struct SDF {
 		}
 		return j;
 	}
+
+	static SDF from_json(const json& j, std::unique_ptr<RBF> rbf) {
+		SDF sdf(std::move(rbf));
+
+		for (const auto& pt : j["points"]) {
+			UM::vec2 pos  { pt["px"].get<double>(), pt["py"].get<double>() };
+			UM::vec2 beta { pt["bx"].get<double>(), pt["by"].get<double>() };
+			double alpha  = pt["alpha"].get<double>();
+			double sigma  = pt["s"].get<double>();
+			sdf.add_func(pos, alpha, beta, sigma);
+		}
+
+		return sdf;
+	}
 };
 
 #endif

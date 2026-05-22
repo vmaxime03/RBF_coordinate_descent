@@ -3,8 +3,11 @@
 
 #include "sdf.hpp"
 #include "ultimaille/polyline.h"
+#include "types.hpp"
 
 #include <fstream>
+
+namespace output {
 void sample_sdf(SDF& sdf, double minx, double miny, double maxx, double maxy, const std::string& fname, int step = 100) {
 	std::ofstream out(fname);
 	int w = step;
@@ -27,7 +30,8 @@ void sample_sdf(SDF& sdf, double minx, double miny, double maxx, double maxy, co
 void export_polyline(UM::PolyLine& pl, const std::string& fname) {
 	std::ofstream out(fname);
 	for (const auto& e : pl.iter_edges()) {
-		auto f = e.from().pos(), t = e.to().pos();
+		auto f = e.from().pos();
+		auto t = e.to().pos();
 		out << f.x << "," << f.y << "," << t.x << "," << t.y << "\n";
 	}
 	out.close();
@@ -35,9 +39,19 @@ void export_polyline(UM::PolyLine& pl, const std::string& fname) {
 
 void export_sdf(SDF& sdf, const std::string& fname) {
 	std::ofstream f(fname);
-	for (size_t i = 0; i < sdf.p.size(); ++i)
-		f << sdf.p[i].x << "," << sdf.p[i].y << ","
-			<< sdf.beta[i].x << "," << sdf.beta[i].y << "\n";
+	for (size_t i = 0; i < sdf.p.size(); ++i) {
+		f << sdf.p[i].x << "," << sdf.p[i].y << "," << sdf.beta[i].x << "," << sdf.beta[i].y << "\n";
+	}
+	f.close();
 }
 
+
+void export_samples(Samples& samples, const std::string& fname) {
+	std::ofstream f(fname);
+	for (const auto& s : samples) {
+		f << s.first.x << "," << s.first.y << "," << s.second.x << "," << s.second.y << "\n";
+	}
+	f.close();
+}
+}
 #endif 

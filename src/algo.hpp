@@ -1,16 +1,19 @@
 #ifndef ALGO_HPP__
 #define ALGO_HPP__
 
-
+#include "debug_macros.hpp"
 #include "output.hpp"
+#include "types.hpp"
 #include "sdf.hpp"
 #include "ultimaille/algebra/vec.h"
 #include "ultimaille/polyline.h"
 #include "ultimaille/sparse/least_squares.h"
 #include "ultimaille/sparse/linexpr.h"
+#include <algorithm>
 #include <atomic>
 #include <cfloat>
 #include <csignal>
+#include <cstddef>
 #include <fstream>
 #include <vector>
 
@@ -20,38 +23,63 @@ namespace sdffitting { // TODO
 	using namespace UM;
 	using namespace UM::Linear;
 
+	namespace samples {
+		Samples compute_edges_samples_normals(PolyLine& pl, size_t n = 10, bool flip_normals = false) {
+			Samples samples;
+			for (const auto& e : pl.iter_edges()) {
+				vec2 d = e.to().pos().xy() - e.from().pos().xy();
 
-	typedef std::pair<vec2, vec2> PointNormal;
-	typedef std::vector<PointNormal> Samples;
+				vec2 normal = vec2(-d.y, d.x).normalized();
 
-	Samples compute_samples_normals(PolyLine& pl, size_t n = 10) {
-		Samples samples;
-		for (const auto& e : pl.iter_edges()) {
-			vec2 d = e.to().pos().xy() - e.from().pos().xy();
-
-			vec2 normal = vec2(-d.y, d.x).normalized();
-
-			for (size_t i = 0; i < n; ++i) {
-				vec2 p = e.from().pos().xy() + ((double)i / (double)n) * d;
-				samples.push_back({p, normal});
+				for (size_t i = 0; i < n; ++i) {
+					vec2 p = e.from().pos().xy() + ((double)i / (double)n) * d;
+					samples.push_back({p, (flip_normals ? -1 : 1) * normal});
+				}
 			}
+			return samples;
 		}
-		return samples;
+
+		Samples compute_equally_spaced_samples_normals(UM::PolyLine& pl, int n, bool flip_normals = false) {
+			Samples samples;
+			double total = 0.0;
+			for (const auto& e : pl.iter_edges()) {
+				UM::Segment3 s = e;
+				total += s.length();
+			}
+			double step = total / double(n);
+			double traveled = step/2; // offset
+			double next = step + step/2;
+
+			for (const auto& e : pl.iter_edges()) {
+				UM::Segment3 s = e;
+				auto v = s.xy().vector();
+				double len = s.length();
+
+				while (next <= traveled + len) {
+					double t = (next - traveled) / len;
+					samples.push_back({
+							s.a.xy() + t * v,
+							(flip_normals ? -1 : 1) * UM::vec2(-v.y, v.x).normalized()
+							});
+					next += step;
+				}
+				traveled += len;
+			}
+			return samples;
+		}
 	}
 
 	struct Fitter {
 
-		PolyLine& pl;
 		SDF& sdf;
 		Samples samples;
 
 
 		explicit Fitter(	
-				PolyLine& _pl,
 				SDF& _sdf,
 				Samples _samples
 				) 
-			: pl(_pl), sdf(_sdf), samples(_samples) {}
+			: sdf(_sdf), samples(_samples) {}
 
 
 
@@ -62,10 +90,31 @@ namespace sdffitting { // TODO
 
 		double default_sigma_add = 1.;
 
+		bool fix_alpha_zero = false;
+		bool fix_beta_zero = false;
+
+		double MIN_IMPROVMENT = 1e-15;
+
+
+
 		void resolve_ls() {
 			// LEAST SQUARE
 			// find alphas & betas
 			LeastSquares ls(3*sdf.p.size());
+
+
+			// TESTS
+			if (fix_alpha_zero) {
+				for (size_t i = 0; i < sdf.p.size(); ++i) {
+					ls.fix(i*3, 0.);
+				}
+			}
+			if (fix_beta_zero) {
+				for (size_t i = 0; i < sdf.p.size(); ++i) {
+					ls.fix(i*3+1, 0.);
+					ls.fix(i*3+2, 0.);
+				}
+			}
 
 			for (const auto& s : samples) {
 
@@ -77,7 +126,6 @@ namespace sdffitting { // TODO
 					vec2 p = s.first - sdf.p[i]; // x - p_i 
 					double l = p.norm();
 
-					// TODO mimic compact support ?  
 					if (l == 0.) continue;
 
 					double phi 		= sdf.rbf->f  (l, sdf.sigma[i]);
@@ -100,6 +148,7 @@ namespace sdffitting { // TODO
 						LinExpr beta3_term = ((dphi * p[k])/(l*l*l)) * dotprod(i);
 
 						grad_res[k] += ((alpha_term + beta1_term + beta2_term - beta3_term));
+
 					}
 				}
 
@@ -122,7 +171,7 @@ namespace sdffitting { // TODO
 				sdf.beta[i].x = bx;
 				sdf.beta[i].y = by;
 			}
-		};
+		}; 
 
 		double error_on_polyline(PointNormal& p) {
 			double d = sdf.distance(p.first); // distance 
@@ -134,23 +183,31 @@ namespace sdffitting { // TODO
 		}
 
 
+
+
 		// total error score
-		double error_total(size_t* pemax = nullptr) {
+		double error_total(std::vector<size_t>* sorted_idx = nullptr) {
 			double t = 0.;
 
-			double emax = -DBL_MAX;
+			std::vector<std::pair<size_t, double>> errors;
+
+			if (sorted_idx) errors.reserve(samples.size());
 
 			for (size_t i = 0; i < samples.size(); ++i) {
 				double err = error_on_polyline(samples[i]);	
 
-				if (pemax && err > emax) {
-					emax = err;
-					*pemax = (int)i;
+				if (sorted_idx) {
+					errors.emplace_back(std::pair<size_t, double>{i, err});
 				}
 
 				t += err;
 			}
 
+			if (sorted_idx) {
+				std::sort(errors.begin(), errors.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
+				sorted_idx->resize(errors.size());
+				std::transform(errors.begin(), errors.end(), sorted_idx->begin(), [](const auto& p) { return p.first; });
+			}
 			return t;
 		}
 
@@ -173,7 +230,7 @@ namespace sdffitting { // TODO
 
 			double errp = error_total();
 
-			if (errp < curr_err) { 
+			if (curr_err - errp > MIN_IMPROVMENT) { 
 				curr_err = errp;
 				return true;
 			}
@@ -184,7 +241,7 @@ namespace sdffitting { // TODO
 
 			double errm = error_total();
 
-			if (errm < curr_err) { 
+			if (curr_err - errm > MIN_IMPROVMENT) { 
 				curr_err = errm;
 				return true;
 			}
@@ -200,16 +257,24 @@ namespace sdffitting { // TODO
 		void run_loop(size_t max_it, size_t snapshot, const std::string& output_dir, std::function<bool()> loop_step) {
 
 			static std::atomic<bool> interupted{false};
-			auto prev_handler = std::signal(SIGINT, [](int) { interupted.store(true); });
+			auto prev_handler = std::signal(SIGINT, [](int) { 
+					if (interupted.load()) exit(1);
+					interupted.store(true); 
+				});
 
+			
+			std::ofstream(output_dir + "init.json") << sdf.to_json().dump(2);
+			std::cout << std::setprecision(15) <<  "init" << ": err : " << error_total() << "\t"  << sdf.to_string() << std::endl;
 
 			bool terminated = false;
 			for (size_t it = 0; it < max_it; ++it) {
 
+				terminated = loop_step();
+
 				// SNAPSHOT OUTPUT	
 				if (it % (max_it / snapshot) == 0 || terminated || interupted.load()) {
 					double total_err = error_total();
-					std::cout << it << ": err : " << total_err << "\t"  << sdf.to_string() << std::endl;
+					std::cout << std::setprecision(15) <<  it << ": err : " << total_err << "\t"  << sdf.to_string() << std::endl;
 					std::ofstream(output_dir + std::to_string(it) + "sdf.json") << sdf.to_json().dump(2);
 				}
 
@@ -222,15 +287,11 @@ namespace sdffitting { // TODO
 					break;
 				}
 
-				terminated = loop_step();
 			}
 
 			std::signal(SIGINT, prev_handler);
 
-			// OUTPUT
-			export_polyline(pl, output_dir + "polyline.csv");
-			export_sdf(sdf, output_dir + "sdf_params.csv");
-			sample_sdf(sdf, -3, -3, 3, 3, output_dir + "sdf.csv");
+
 		}
 
 
@@ -273,7 +334,7 @@ namespace sdffitting { // TODO
 		// TODO
 		void fit_add_point(size_t max_it, size_t snapshot, const std::string& output_dir) {
 
-			sdf.add_func(samples[0].first, 1., samples[0].second, default_sigma_add);
+			if (sdf.p.empty()) sdf.add_func(samples[0].first, 1., samples[0].second, default_sigma_add);
 
 			run_loop(max_it, snapshot, output_dir, 
 					[&]() {	
@@ -288,11 +349,11 @@ namespace sdffitting { // TODO
 					}
 
 					if (terminated) {
-						size_t idx;
+						std::vector<size_t> idx;
 						double err = error_total(&idx);
 
 						if (err > ADD_POINT_ERR_THRESHOLD) {
-							sdf.add_func(samples[idx].first, 1, samples[idx].second, default_sigma_add);
+							sdf.add_func(samples[idx[0]].first, 1, samples[idx[0]].second, default_sigma_add);
 							terminated = false;
 						}
 					}
@@ -307,7 +368,7 @@ namespace sdffitting { // TODO
 		void fit_moving_add_points(size_t max_it, size_t snapshot, const std::string& output_dir) {
 
 			double last_add_err = DBL_MAX;
-			sdf.add_func(samples[0].first, 1., samples[0].second, default_sigma_add);
+			if (sdf.p.empty()) sdf.add_func(samples[0].first, 1., samples[0].second, default_sigma_add);
 
 
 			run_loop(max_it, snapshot, output_dir, 
@@ -325,12 +386,12 @@ namespace sdffitting { // TODO
 						}
 
 						if (terminated) {
-							size_t idx;
+							std::vector<size_t> idx;
 							double err = error_total(&idx);
 
 							if (err > ADD_POINT_ERR_THRESHOLD && last_add_err - err > ADD_POINT_ERR_THRESHOLD) {
 								last_add_err = err;
-								sdf.add_func(samples[idx].first, 1, samples[idx].second, default_sigma_add);
+								sdf.add_func(samples[idx[0]].first, 1, samples[idx[0]].second, default_sigma_add);
 								terminated = false;
 							}
 						}
@@ -377,7 +438,7 @@ namespace sdffitting { // TODO
 
 
 			// improvment case 
-			if (best_err < ce) {
+			if (ce - best_err > MIN_IMPROVMENT) {
 
 				if (errp <= errm) {
 					var = std::clamp(old + step, lb, ub);
@@ -413,6 +474,34 @@ namespace sdffitting { // TODO
 					});
 		}
 
+
+		void fit_adaptative_step_add_points(size_t max_it, size_t snapshot, const std::string& output_dir) {
+			std::vector<double> steps_sigma;
+			steps_sigma.assign(sdf.p.size(), step_sigma);
+
+			run_loop(max_it, snapshot, output_dir, [&]() {
+					bool terminated = true;
+					double ce = error_total();
+					for (size_t i = 0; i < sdf.p.size(); ++i) {
+					terminated &= !coordinate_descent_adaptative(sdf.sigma[i], steps_sigma[i], lb_sigma, ub_sigma, ce);
+					}
+
+				if (terminated) {
+					std::vector<size_t> idx;
+					double err = error_total(&idx);
+
+					if (err > ADD_POINT_ERR_THRESHOLD) {
+					sdf.add_func(samples[idx[0]].first, 1, samples[idx[0]].second, default_sigma_add);
+
+					steps_sigma.push_back(step_sigma);
+					
+					terminated = false;
+					}
+					}
+					return terminated;
+			});
+		}
+	
 		void fit_adaptative_step_moving_points(size_t max_it, size_t snapshot, const std::string& output_dir) {
 			std::vector<double> steps_sigma;
 			std::vector<double> steps_px;
@@ -435,8 +524,6 @@ namespace sdffitting { // TODO
 
 		void fit_adaptative_step_moving_add_points(size_t max_it, size_t snapshot, const std::string& output_dir)  {
 
-			double last_add_err = DBL_MAX;
-			sdf.add_func(samples[0].first, 1., samples[0].second, default_sigma_add);
 
 			std::vector<double> steps_sigma;
 			std::vector<double> steps_px;
@@ -456,12 +543,11 @@ namespace sdffitting { // TODO
 					}
 
 					if (terminated) {
-					size_t idx;
+					std::vector<size_t> idx;
 					double err = error_total(&idx);
 
 					if (err > ADD_POINT_ERR_THRESHOLD) {
-					last_add_err = err;
-					sdf.add_func(samples[idx].first, 1, samples[idx].second, default_sigma_add);
+					sdf.add_func(samples[idx[0]].first, 1, samples[idx[0]].second, default_sigma_add);
 
 					steps_sigma.push_back(step_sigma);
 					steps_px.push_back(step_point);
@@ -474,6 +560,53 @@ namespace sdffitting { // TODO
 					});
 
 		}
+
+
+
+		bool is_too_close(const UM::vec2& pos) {
+			for (size_t i = 0; i < sdf.p.size(); ++i) {
+				if ((pos - sdf.p[i]).norm() < 1e-8) {
+					return true;
+				}
+			}
+			return false;
+		}
+	
+
+
+		void fit_alpha_beta_add(size_t max_it, size_t snapshot, const std::string& output_dir) {
+
+			run_loop(max_it, snapshot, output_dir, [&]() {
+
+					resolve_ls();
+
+					std::vector<size_t> idx;
+					double err = error_total(&idx);
+
+					if (err > ADD_POINT_ERR_THRESHOLD) {
+						size_t k = 0;
+
+						while (k < idx.size()) {
+							if (is_too_close(samples[idx[k]].first)) {
+									++k;
+							} else {
+								break;
+							}
+						}
+
+						if (k == idx.size()) {return true; }
+
+						sdf.add_func(samples[idx[k]].first, 1., samples[idx[k]].second, default_sigma_add);
+
+						return false;
+					}
+					return true;
+
+					});
+		}
+
+
+	
 	};
 
 }

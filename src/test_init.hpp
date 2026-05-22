@@ -18,7 +18,7 @@
 #include "ultimaille/primitive_geometry.h"
 
 namespace SDFPointInit {
-	void circle(SDF& sdf, int npoint, double R = 1.0, double offset = 0., double alpha = 1., double sigma = 1.) { 
+	void circle(SDF& sdf, int npoint, double R = 1.0, double offset = 0., double alpha = 1., double sigma = 1., bool flip_beta = false) { 
 
 		const double anglep = 2 * std::numbers::pi / npoint;
 
@@ -31,13 +31,13 @@ namespace SDFPointInit {
 			UM::vec2 p = {R * cos(i * anglep + offset), R * sin(i * anglep + offset)};
 			sdf.p    [i] = p;
 			sdf.alpha[i] = alpha;
-			sdf.beta [i] = -p.normalized();
+			sdf.beta [i] = (flip_beta ? -1 : 1) * -p.normalized();
 			sdf.sigma[i] = sigma;
 		}
 	}
 
 	// TODO
-	void shape(SDF& sdf, UM::PolyLine& pl, double alpha = 1., double sigma = 1.) {
+	void shape(SDF& sdf, UM::PolyLine& pl, double alpha = 1., double sigma = 1., bool flip_beta = false) {
 
 		int npoint = pl.nedges();
 
@@ -54,7 +54,7 @@ namespace SDFPointInit {
 
 			sdf.p    [i] = (e.from().pos() + (v / 2)).xy();
 			sdf.alpha[i] = alpha;
-			sdf.beta [i] = UM::vec2(-v.y, v.x).normalized();
+			sdf.beta [i] = (flip_beta ? -1 : 1) * UM::vec2(-v.y, v.x).normalized();
 			sdf.sigma[i] = sigma;
 
 			++i;
@@ -65,7 +65,7 @@ namespace SDFPointInit {
 
 	// Equally spaced point along the polyline 
 
-	void equaly_spaced_shape(SDF& sdf, UM::PolyLine& pl, int n, double alpha = 1., double sigma = 1.) {
+	void equaly_spaced_shape(SDF& sdf, UM::PolyLine& pl, int n, double alpha = 1., double sigma = 1., bool flip_beta = false) {
 
 		double total = 0.0;
 		for (const auto& e : pl.iter_edges()) {
@@ -89,7 +89,7 @@ namespace SDFPointInit {
 				sdf.add_func(
 						s.a.xy() + t * v,
 						alpha,
-						UM::vec2(-v.y, v.x).normalized(),
+						(flip_beta ? -1 : 1) * UM::vec2(-v.y, v.x).normalized(),
 						sigma
 						);
 				next += step;

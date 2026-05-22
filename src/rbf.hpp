@@ -27,6 +27,20 @@ struct Gaussian : RBF {
 	inline std::string name() const override { return "gaussian"; }
 };
 
+struct GaussianMinusOne : RBF {
+	Gaussian g;
+	inline double f(double r, double e) const override {
+		return g.f(r, e) - 1;
+	}
+	inline double df(double r, double e) const override {
+		return g.df(r, e);
+	}
+	inline double ddf(double r, double e) const override {
+		return g.ddf(r, e);
+	}
+	std::string name() const override { return g.name(); }
+};
+
 
 struct WendlandC2 : RBF {
     inline double f(double r, double e) const override {

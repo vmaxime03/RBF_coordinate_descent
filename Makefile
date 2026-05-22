@@ -24,10 +24,10 @@ gif:
 	cd build/src/script && python3 animation.py ./../../../$(DATA)/ ./../../../output/anim.gif
 
 octave:
-	cd build/src/script && octave debug.m ./../../../$(DATA)/sdf.csv ./../../../$(DATA)/polyline.csv ./../../../$(DATA)/sdf_params.csv
+	cd build/src/script && octave debug_plot.m ./../../../$(DATA)/
 
 surface:
-	cd build/src/script && octave surface_plot.m ./../../../$(DATA)/sdf.csv ./../../../$(DATA)/polyline.csv ./../../../$(DATA)/sdf_params.csv
+	cd build/src/script && octave surface_plot.m ./../../../$(DATA)/
 
 correlation:
 	cd build/src/script && python3 correlation.py ./../../../$(DATA)/
