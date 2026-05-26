@@ -4,6 +4,7 @@
 #include "sdf.hpp"
 #include "ultimaille/polyline.h"
 #include "types.hpp"
+#include "algo.hpp"
 
 #include <fstream>
 
@@ -50,6 +51,18 @@ void export_samples(Samples& samples, const std::string& fname) {
 	std::ofstream f(fname);
 	for (const auto& s : samples) {
 		f << s.first.x << "," << s.first.y << "," << s.second.x << "," << s.second.y << "\n";
+	}
+	f.close();
+}
+
+void export_samples_error(Samples& samples, SDF& sdf, const std::string& fname) {
+	std::ofstream f(fname);
+	for (auto& s : samples) {
+		double dist = sdf.distance(s.first);
+		auto diff = s.second - sdf.gradient(s.first);
+		f << s.first.x << "," << s.first.y << "," << dist*dist << "," << diff.norm2() << "\n";
+		
+		// f << s.first.x << "," << s.first.y << "," << fitter.error_on_sample(s) << "\n";
 	}
 	f.close();
 }
