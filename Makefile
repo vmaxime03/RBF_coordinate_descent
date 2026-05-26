@@ -29,6 +29,9 @@ octave:
 surface:
 	cd build/src/script && octave surface_plot.m ./../../../$(DATA)/
 
+samples_error:
+	cd build/src/script && octave samples_plot.m ./../../../$(DATA)/
+
 correlation:
 	cd build/src/script && python3 correlation.py ./../../../$(DATA)/
 
