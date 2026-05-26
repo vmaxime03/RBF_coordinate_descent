@@ -36,7 +36,6 @@ namespace SDFPointInit {
 		}
 	}
 
-	// TODO
 	void shape(SDF& sdf, UM::PolyLine& pl, double alpha = 1., double sigma = 1., bool flip_beta = false) {
 
 		int npoint = pl.nedges();
@@ -56,6 +55,32 @@ namespace SDFPointInit {
 			sdf.alpha[i] = alpha;
 			sdf.beta [i] = (flip_beta ? -1 : 1) * UM::vec2(-v.y, v.x).normalized();
 			sdf.sigma[i] = sigma;
+
+			++i;
+		}
+
+	}
+
+	// 1 point per edge with sigma = coef * len(edge)
+	void shape_sigma_edge_length(SDF& sdf, UM::PolyLine& pl, double alpha = 1., double sigma_coef = 1., bool flip_beta = false) {
+
+		int npoint = pl.nedges();
+
+		sdf.p.resize(npoint);
+		sdf.alpha.resize(npoint);
+		sdf.beta.resize(npoint);
+		sdf.sigma.resize(npoint);
+
+		int i = 0;
+
+		for (const auto& e : pl.iter_edges()) {
+
+			auto v = e.to().pos() - e.from().pos();
+
+			sdf.p    [i] = (e.from().pos() + (v / 2)).xy();
+			sdf.alpha[i] = alpha;
+			sdf.beta [i] = (flip_beta ? -1 : 1) * UM::vec2(-v.y, v.x).normalized();
+			sdf.sigma[i] = v.norm() * sigma_coef;
 
 			++i;
 		}
