@@ -34,7 +34,7 @@ hold on;
 
 % DISTANCE ERROR — normalised bars toward +z, hot colormap
 for i = 1 : nsamples
-  ci  = max(1, round(dist_norm(i) * 255) + 1);
+  ci  = max(1, round(dist_norm(i) / dist_range * 255) + 1);
   col = cmap_dist(ci, :);
   plot3([errd(i,1), errd(i,1)], [errd(i,2), errd(i,2)], [0, dist_norm(i)], ...
         '-', 'Color', col, 'LineWidth', 1.5);
@@ -42,7 +42,7 @@ end
  
 % GRADIENT ERROR — normalised bars toward -z, cool colormap
 for i = 1 : nsamples
-  ci  = max(1, round(grad_norm(i) * 255) + 1);
+  ci  = max(1, round(grad_norm(i) / grad_range * 255) + 1);
   col = cmap_grad(ci, :);
   plot3([errd(i,1), errd(i,1)], [errd(i,2), errd(i,2)], [0, -grad_norm(i)], ...
         '-', 'Color', col, 'LineWidth', 1.5);
