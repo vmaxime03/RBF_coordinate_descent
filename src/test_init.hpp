@@ -87,6 +87,19 @@ namespace SDFPointInit {
 
 	}
 
+	// n point per edge with sigma = edge / (n + 1) * sigma_coef
+	void shape_multiple(SDF& sdf, UM::PolyLine& pl, size_t n, double alpha = 1., double sigma_coef = 1., bool flip_beta = false) {
+		for (const auto& e : pl.iter_edges()) {
+			UM::vec2 d = e.to().pos().xy() - e.from().pos().xy();
+			auto step = d / double(n+1);
+			UM::vec2 normal = UM::vec2(-d.y, d.x).normalized();
+			for (size_t i = 1; i <= n; ++i) {
+				UM::vec2 p = e.from().pos().xy() + i * step;
+				sdf.add_func(p, alpha, (flip_beta ? -1 : 1) * normal, step.norm() * sigma_coef);
+			}
+		}
+	}
+
 
 	// Equally spaced point along the polyline 
 
