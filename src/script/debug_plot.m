@@ -3,6 +3,7 @@ fname        = fullfile(folder, 'sdf.csv');
 plname       = fullfile(folder, 'polyline.csv');
 sdfname      = fullfile(folder, 'sdf_params.csv');
 samplesnames = fullfile(folder, 'samples.csv');
+errname  = fullfile(folder, 'samples_error.csv');
 
 data = dlmread(fname, ',');
 

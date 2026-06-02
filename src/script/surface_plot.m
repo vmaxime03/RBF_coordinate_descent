@@ -2,7 +2,8 @@ folder = argv(){1};
 fname        = fullfile(folder, 'sdf.csv');
 plname       = fullfile(folder, 'polyline.csv');
 sdfname      = fullfile(folder, 'sdf_params.csv');
-
+samplesnames = fullfile(folder, 'samples.csv');
+errname  = fullfile(folder, 'samples_error.csv');
 
 data = dlmread(fname, ',');
 
@@ -28,6 +29,8 @@ y = linspace(miny, maxy, size(Z, 1));
 zmax = max(Z(:));
 zmin = min(Z(:));
 
+zfloor = zmax + 0.1;
+
 negative_lev = linspace(zmin, 0, 10)(1:end-1);
 positive_lev = linspace(0, zmax, 10)(2:end);
 levels = [negative_lev, positive_lev];
@@ -40,19 +43,25 @@ hold on;
 
 % CONTOUR LINES
 contour3(x, y, Z, levels, 'LineWidth', 1);
-contour3(x, y, Z, [0 0], 'r', 'LineWidth', 4);
+contour3(x, y, Z, [0 0], 'r', 'LineWidth', 2);
+
+% GRADIENT FIELD
+n = 6;
+hGrad = quiver3(X(1:n:end, 1:n:end), Y(1:n:end, 1:n:end), zeros(size(X(1:n:end, 1:n:end))) + zfloor, GX(1:n:end, 1:n:end), GY(1:n:end, 1:n:end), zeros(size(GX(1:n:end, 1:n:end))), 0.8, 'b');
 
 % POLYLINE
 pl = dlmread(plname, ',');
+hPoly = [];
 for i = 1:size(pl, 1)
-    h = plot3([pl(i,1), pl(i,3)], [pl(i,2), pl(i,4)], [0, 0], 'g-', 'LineWidth', 2, 'Clipping', 'off');
+    h = plot3([pl(i,1), pl(i,3)], [pl(i,2), pl(i,4)], [-0.01, 0.01], 'g-', 'LineWidth', 2);
+    hPoly = [hPoly, h];
 end
-set(gca, 'SortMethod', 'childorder');
 
-% CONTROL POINTS
+% POINTS AND BETAS
 sdfpts = dlmread(sdfname, ',');
 npts = size(sdfpts, 1);
-pts = plot3(sdfpts(:,1), sdfpts(:,2), zeros(npts,1), 'ko', 'MarkerSize', 2, 'MarkerFaceColor', 'magenta');
+hSdfPts  = plot3(sdfpts(:,1), sdfpts(:,2), zeros(npts,1) , 'ko', 'MarkerSize', 8, 'MarkerFaceColor', 'yellow');
+hSdfVecs = quiver3(sdfpts(:,1), sdfpts(:,2), zeros(npts,1) , sdfpts(:,3), sdfpts(:,4), zeros(npts,1), 0.3, 'k', 'LineWidth', 2);
 
 
 
@@ -63,4 +72,7 @@ xlabel('x'); ylabel('y'); zlabel('f(x,y)');
 
 view(0, 90);
 
-pause()
+pause();
+
+
+
