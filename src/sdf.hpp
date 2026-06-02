@@ -8,126 +8,80 @@
 #include <sstream>
 #include <vector>
 
-#include "nlohmann/json.hpp"
-using json = nlohmann::json;
+#include "sdf_base.hpp"
 
+struct FonctionCirculaire {
+	UM::vec2 point;
+	double alpha;
+	UM::vec2 beta;
+	double sigma;
+};
 
-struct SDF {
-	std::vector<UM::vec2> p;
-	std::vector<double> alpha;
-	std::vector<UM::vec2> beta;
-	std::vector<double> sigma;
+struct SDF : SDF_Base<FonctionCirculaire> {
+	using SDF_Base::SDF_Base;
 
-	std::unique_ptr<RBF> rbf;
-
-	explicit SDF(std::unique_ptr<RBF> _rbf) : rbf(std::move(_rbf)) {};
-
-	inline void add_func(UM::vec2 _p, double _alpha, UM::vec2 _beta, double _sigma) {
-		p.push_back(_p);
-		alpha.push_back(_alpha);
-		beta.push_back(_beta);
-		sigma.push_back(_sigma);
-	}
-
-
-	inline double contrib_dist_i(size_t i, UM::vec2 pos) {
-		double n = (pos - p[i]).norm();
+	inline double fi(size_t i, UM::vec2 pos) const override {
+		double n = (pos - fonctions[i].point).norm();
 		if (n == 0) return 0.;
-		return alpha[i] * rbf->f(n, sigma[i]) 
-				+ rbf->df(n, sigma[i]) *  (beta[i] * ((pos - p[i])/n));
+		return fonctions[i].alpha * rbf->f(n, fonctions[i].sigma) 
+				+ rbf->df(n, fonctions[i].sigma) *  (fonctions[i].beta * ((pos - fonctions[i].point)/n));
 
-	}
-
-	double distance(UM::vec2 pos, size_t without = -1) {
-		double t = 0.;
-
-		for (size_t i = 0; i < p.size(); ++i) {
-			if (i == without) continue;
-			t += contrib_dist_i(i, pos);
-				}
-		return t;
 	}
 
 	// https://mobile.rodolphe-vaillant.fr/images/pdfs/hrbf.pdf#section.3
 	
-	inline UM::vec2 contrib_grad_i(size_t i, UM::vec2 pos) {
-		auto diff = pos - p[i];
+	inline UM::vec2 gi(size_t i, UM::vec2 pos) const override {
+		auto diff = pos - fonctions[i].point;
 		double l = diff.norm();
 
 		if (l <= 0.0000001f) return {0., 0.};
 
 		auto diff_normalized = diff.normalized();
 
-		double dphi = rbf->df(l, sigma[i]);
-		double ddphi = rbf->ddf(l, sigma[i]);
+		double dphi = rbf->df(l, fonctions[i].sigma);
+		double ddphi = rbf->ddf(l, fonctions[i].sigma);
 
-		double alpha_dphi = alpha[i] * dphi;
-		double beta_dot_diff_l = (beta[i] * diff)/l;
+		double alpha_dphi = fonctions[i].alpha * dphi;
+		double beta_dot_diff_l = (fonctions[i].beta * diff)/l;
 		double squared_l = diff.norm2();
 
 		return alpha_dphi * diff_normalized
 			+	beta_dot_diff_l * (ddphi * diff_normalized - diff * dphi / squared_l)
-			+	beta[i] * dphi / l;
+			+	fonctions[i].beta * dphi / l;
 
 
 	}
 	
-	UM::vec2 gradient(UM::vec2 pos, size_t without = -1) {
-		UM::vec2 grad(0., 0.);
-
-		for (size_t i = 0; i < p.size(); ++i) {
-			if (i == without) continue;
-			grad += contrib_grad_i(i, pos);	
-		
-		}
-		return grad;
-	}
-	
 
 
-
-
-	std::string to_string() {
+	std::string to_string() const override {
 		std::stringstream ss;
 		ss << "SDF:\n";
-		for (size_t i = 0; i < p.size(); ++i) {
-			ss << "\tpi=(" << p[i].x << ",\t" << p[i].y << "),\tai="	<< alpha[i] << ",\tbi=(" << beta[i].x << ",\t" << beta[i].y << "),\ts=" << sigma[i] << ";\n";
+		for (size_t i = 0; i < fonctions.size(); ++i) {
+			ss << "\tpi=(" << fonctions[i].point.x << ",\t" << fonctions[i].point.y << "),\tai="	<< fonctions[i].alpha << ",\tbi=(" << fonctions[i].beta.x << ",\t" << fonctions[i].beta.y << "),\ts=" << fonctions[i].sigma << ";\n";
 		}
 
 		return ss.str();
 	}
 
-	json to_json() {
-		json j;
+	nlohmann::json to_json() const override {
+		nlohmann::json j;
 		j["rbf"] = rbf->name();
-		j["points"] = json::array();
+		j["points"] = nlohmann::json::array();
 
-		for (size_t i = 0; i < p.size(); ++i) {
+		for (size_t i = 0; i < fonctions.size(); ++i) {
 			j["points"].push_back({
-					{"px", p[i].x},        
-					{"py", p[i].y},
-					{"alpha", alpha[i]},
-					{"bx", beta[i].x},
-					{"by", beta[i].y},
-					{"s", sigma[i]}
+					{"px", fonctions[i].point.x},        
+					{"py", fonctions[i].point.y},
+					{"alpha", fonctions[i].alpha},
+					{"bx", fonctions[i].beta.x},
+					{"by", fonctions[i].beta.y},
+					{"s", fonctions[i].sigma}
 					});
 		}
 		return j;
 	}
 
-	static SDF from_json(const json& j, std::unique_ptr<RBF> rbf) {
-		SDF sdf(std::move(rbf));
-
-		for (const auto& pt : j["points"]) {
-			UM::vec2 pos  { pt["px"].get<double>(), pt["py"].get<double>() };
-			UM::vec2 beta { pt["bx"].get<double>(), pt["by"].get<double>() };
-			double alpha  = pt["alpha"].get<double>();
-			double sigma  = pt["s"].get<double>();
-			sdf.add_func(pos, alpha, beta, sigma);
-		}
-
-		return sdf;
-	}
 };
 
 #endif

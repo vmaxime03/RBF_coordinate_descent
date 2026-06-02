@@ -22,17 +22,14 @@ namespace SDFPointInit {
 
 		const double anglep = 2 * std::numbers::pi / npoint;
 
-		sdf.p.resize(npoint);
-		sdf.alpha.resize(npoint);
-		sdf.beta.resize(npoint);
-		sdf.sigma.resize(npoint);
-
 		for (int i = 0; i < npoint; ++i) {
 			UM::vec2 p = {R * cos(i * anglep + offset), R * sin(i * anglep + offset)};
-			sdf.p    [i] = p;
-			sdf.alpha[i] = alpha;
-			sdf.beta [i] = (flip_beta ? -1 : 1) * -p.normalized();
-			sdf.sigma[i] = sigma;
+			sdf.add_func({
+				p,
+				alpha,
+				(flip_beta ? -1 : 1) * -p.normalized(),
+				sigma
+			});
 		}
 	}
 
@@ -40,10 +37,6 @@ namespace SDFPointInit {
 
 		int npoint = pl.nedges();
 
-		sdf.p.resize(npoint);
-		sdf.alpha.resize(npoint);
-		sdf.beta.resize(npoint);
-		sdf.sigma.resize(npoint);
 
 		int i = 0;
 
@@ -51,10 +44,12 @@ namespace SDFPointInit {
 
 			auto v = e.to().pos() - e.from().pos();
 
-			sdf.p    [i] = (e.from().pos() + (v / 2)).xy();
-			sdf.alpha[i] = alpha;
-			sdf.beta [i] = (flip_beta ? -1 : 1) * UM::vec2(-v.y, v.x).normalized();
-			sdf.sigma[i] = sigma;
+			sdf.add_func({
+				(e.from().pos() + (v / 2)).xy(),
+				alpha,
+				(flip_beta ? -1 : 1) * UM::vec2(-v.y, v.x).normalized(),
+				sigma
+			});
 
 			++i;
 		}
@@ -66,21 +61,18 @@ namespace SDFPointInit {
 
 		int npoint = pl.nedges();
 
-		sdf.p.resize(npoint);
-		sdf.alpha.resize(npoint);
-		sdf.beta.resize(npoint);
-		sdf.sigma.resize(npoint);
-
 		int i = 0;
 
 		for (const auto& e : pl.iter_edges()) {
 
 			auto v = e.to().pos() - e.from().pos();
 
-			sdf.p    [i] = (e.from().pos() + (v / 2)).xy();
-			sdf.alpha[i] = alpha;
-			sdf.beta [i] = (flip_beta ? -1 : 1) * UM::vec2(-v.y, v.x).normalized();
-			sdf.sigma[i] = v.norm() * sigma_coef;
+			sdf.add_func({
+				(e.from().pos() + (v / 2)).xy(),
+				alpha,
+				(flip_beta ? -1 : 1) * UM::vec2(-v.y, v.x).normalized(),
+				v.norm() * sigma_coef
+			});;
 
 			++i;
 		}
@@ -95,7 +87,7 @@ namespace SDFPointInit {
 			UM::vec2 normal = UM::vec2(-d.y, d.x).normalized();
 			for (size_t i = 1; i <= n; ++i) {
 				UM::vec2 p = e.from().pos().xy() + i * step;
-				sdf.add_func(p, alpha, (flip_beta ? -1 : 1) * normal, step.norm() * sigma_coef);
+				sdf.add_func({p, alpha, (flip_beta ? -1 : 1) * normal, step.norm() * sigma_coef});
 			}
 		}
 	}
@@ -124,12 +116,12 @@ namespace SDFPointInit {
 
 			while (next <= traveled + len) {
 				double t = (next - traveled) / len;
-				sdf.add_func(
+				sdf.add_func({
 						s.a.xy() + t * v,
 						alpha,
 						(flip_beta ? -1 : 1) * UM::vec2(-v.y, v.x).normalized(),
 						sigma
-						);
+						});
 				next += step;
 			}
 

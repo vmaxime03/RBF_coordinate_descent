@@ -58,14 +58,17 @@ namespace sdffitting {
 
 
 		void resolve_ls() {
-			LeastSquares ls(3 * sdf.p.size());
+
+			if (sdf.fonctions.empty()) return;
+
+			LeastSquares ls(3 * sdf.fonctions.size());
 
 			if (fix_alpha_zero) {
-				for (size_t i = 0; i < sdf.p.size(); ++i)
+				for (size_t i = 0; i < sdf.fonctions.size(); ++i)
 					ls.fix(i * 3, 0.);
 			}
 			if (fix_beta_zero) {
-				for (size_t i = 0; i < sdf.p.size(); ++i) {
+				for (size_t i = 0; i < sdf.fonctions.size(); ++i) {
 					ls.fix(i * 3 + 1, 0.);
 					ls.fix(i * 3 + 2, 0.);
 				}
@@ -75,14 +78,17 @@ namespace sdffitting {
 				LinExpr value_res;
 				LinExpr grad_res[2];
 
-				for (size_t i = 0; i < sdf.p.size(); ++i) {
-					vec2   p     = s.point - sdf.p[i];
+				for (size_t i = 0; i < sdf.fonctions.size(); ++i) {
+
+					if (!sdf.active[i]) continue;
+
+					vec2   p     = s.point - sdf.fonctions[i].point;
 					double l     = p.norm();
 					if (l == 0.) continue;
 
-					double phi   = sdf.rbf->f  (l, sdf.sigma[i]);
-					double dphi  = sdf.rbf->df (l, sdf.sigma[i]);
-					double ddphi = sdf.rbf->ddf(l, sdf.sigma[i]);
+					double phi   = sdf.rbf->f  (l, sdf.fonctions[i].sigma);
+					double dphi  = sdf.rbf->df (l, sdf.fonctions[i].sigma);
+					double ddphi = sdf.rbf->ddf(l, sdf.fonctions[i].sigma);
 
 					LinExpr term =
 						X(i*3)   * phi +
@@ -105,16 +111,16 @@ namespace sdffitting {
 
 				vec2 n = s.normal;
 				ls.add_to_energy( std::sqrt(lambda_distance) * value_res);
-				ls.add_to_energy( std::sqrt(lambda_gradient) * grad_res[0] - n[0]);
-				ls.add_to_energy( std::sqrt(lambda_gradient) * grad_res[1] - n[1]);
+				ls.add_to_energy( std::sqrt(lambda_gradient) * (grad_res[0] - n[0]));
+				ls.add_to_energy( std::sqrt(lambda_gradient) * (grad_res[1] - n[1]));
 			}
 
 			ls.solve();
 
-			for (size_t i = 0; i < sdf.p.size(); ++i) {
-				sdf.alpha[i]   = ls.value(i*3);
-				sdf.beta[i].x  = ls.value(i*3+1);
-				sdf.beta[i].y  = ls.value(i*3+2);
+			for (size_t i = 0; i < sdf.fonctions.size(); ++i) {
+				sdf.fonctions[i].alpha   = ls.value(i*3);
+				sdf.fonctions[i].beta.x  = ls.value(i*3+1);
+				sdf.fonctions[i].beta.y  = ls.value(i*3+2);
 			}
 		}
 
@@ -148,8 +154,7 @@ namespace sdffitting {
 
 		bool coordinate_descent(double& var, double& step, double lb, double ub, double& curr_err) {
 			const double old       = var;
-			const auto   old_alpha = sdf.alpha;
-			const auto   old_beta  = sdf.beta;
+			const auto   old_f = sdf.fonctions;
 
 			var = std::clamp(old + step, lb, ub);
 			resolve_ls();
@@ -164,21 +169,18 @@ namespace sdffitting {
 			if (curr_err - errm > MIN_IMPROVEMENT) { curr_err = errm; return true; }
 
 			var       = old;
-			sdf.alpha = old_alpha;
-			sdf.beta  = old_beta;
+			sdf.fonctions = old_f;
 			return false;
 		}
 
 		bool coordinate_descent_adaptive(double& var, double& step, double lb, double ub, double& ce) {
 			const double old       = var;
-			const auto   old_alpha = sdf.alpha;
-			const auto   old_betas = sdf.beta;
+			const auto   old_f = sdf.fonctions;
 
 			var = std::clamp(old + step, lb, ub);
 			resolve_ls();
 			double errp = error_total();
-			const auto alphap = sdf.alpha;
-			const auto betap  = sdf.beta;
+			const auto oldp = sdf.fonctions;
 
 			var = std::clamp(old - step, lb, ub);
 			resolve_ls();
@@ -189,8 +191,7 @@ namespace sdffitting {
 			if (ce - best_err > MIN_IMPROVEMENT) {
 				if (errp <= errm) {
 					var       = std::clamp(old + step, lb, ub);
-					sdf.alpha = alphap;
-					sdf.beta  = betap;
+					sdf.fonctions = oldp;
 				}
 				ce   = best_err;
 				step = std::min(step * EXPAND, (ub - lb));
@@ -198,8 +199,7 @@ namespace sdffitting {
 			}
 
 			var       = old;
-			sdf.alpha = old_alpha;
-			sdf.beta  = old_betas;
+			sdf.fonctions = old_f;
 			step      = std::max(step * SHRINK, MIN_STEP);
 			return step > MIN_STEP;
 		}
@@ -243,8 +243,8 @@ namespace sdffitting {
 
 
 		bool is_too_close(const UM::vec2& pos) const {
-			for (size_t i = 0; i < sdf.p.size(); ++i)
-				if ((pos - sdf.p[i]).norm() < 1e-8) return true;
+			for (size_t i = 0; i < sdf.fonctions.size(); ++i)
+				if ((pos - sdf.fonctions[i].point).norm() < 1e-8) return true;
 			return false;
 		}
 
@@ -254,11 +254,18 @@ namespace sdffitting {
 			while (k < idx.size() && is_too_close(samples[idx[k]].point)) ++k;
 			if (k == idx.size()) return false;
 
-			sdf.add_func(samples[idx[k]].point, 1., samples[idx[k]].normal, default_sigma_add);
+			sdf.add_func({samples[idx[k]].point, 1., samples[idx[k]].normal, default_sigma_add});
 			return true;
 		}
 	};
 
+	struct TestCircular : Fitter {
+		using Fitter::Fitter;
+
+		void fit(size_t max_it, size_t snapshot, const std::string &output_dir) override {
+
+		}
+	};
 
 } // namespace sdffitting
 

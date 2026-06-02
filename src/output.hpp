@@ -2,12 +2,15 @@
 #define OUTPUT_HPP__ 
 
 #include "sdf.hpp"
+#include "sdf_base.hpp"
 #include "ultimaille/polyline.h"
 #include "samples.hpp"
 #include <fstream>
 
 namespace output {
-void sample_sdf(SDF& sdf, double minx, double miny, double maxx, double maxy, const std::string& fname, int step = 100) {
+
+
+void sample_sdf(auto& sdf, double minx, double miny, double maxx, double maxy, const std::string& fname, int step = 100) {
 	std::ofstream out(fname);
 	int w = step;
 	int h = step;
@@ -36,10 +39,10 @@ void export_polyline(UM::PolyLine& pl, const std::string& fname) {
 	out.close();
 }
 
-void export_sdf(SDF& sdf, const std::string& fname) {
+void export_sdf(auto& sdf, const std::string& fname) {
 	std::ofstream f(fname);
-	for (size_t i = 0; i < sdf.p.size(); ++i) {
-		f << sdf.p[i].x << "," << sdf.p[i].y << "," << sdf.beta[i].x << "," << sdf.beta[i].y << "\n";
+	for (size_t i = 0; i < sdf.fonctions.size(); ++i) {
+		f << sdf.fonctions[i].point.x << "," << sdf.fonctions[i].point.y << "," << sdf.fonctions[i].beta.x << "," << sdf.fonctions[i].beta.y << "\n";
 	}
 	f.close();
 }
@@ -53,7 +56,7 @@ void export_samples(samples::Samples& samples, const std::string& fname) {
 	f.close();
 }
 
-void export_samples_error(samples::Samples& samples, SDF& sdf, const std::string& fname, double lambda_distance = 1., double lambda_gradient = 1.) {
+void export_samples_error(samples::Samples& samples, auto& sdf, const std::string& fname, double lambda_distance = 1., double lambda_gradient = 1.) {
 	std::ofstream f(fname);
 	for (auto& s : samples) {
 		double dist = sdf.distance(s.point);
