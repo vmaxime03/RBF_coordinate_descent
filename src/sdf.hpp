@@ -10,14 +10,11 @@
 
 #include "sdf_base.hpp"
 
-struct FonctionCirculaire {
-	UM::vec2 point;
-	double alpha;
-	UM::vec2 beta;
+struct FunctionCircular : FunctionBase {
 	double sigma;
 };
 
-struct SDF : SDF_Base<FonctionCirculaire> {
+struct SDF : SDF_Base<FunctionCircular> {
 	using SDF_Base::SDF_Base;
 
 	inline double fi(size_t i, UM::vec2 pos) const override {

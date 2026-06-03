@@ -26,50 +26,39 @@ int main(int argc, char** argv) {
 
 
 	PolyLine pl;
-	auto rbf = std::make_unique<WendlandC2>();
+	auto rbf = std::make_unique<Gaussian>();
 	
-
-	// SDF sdf(std::move(rbf));
-
-	// SDF_Elliptic sdf(std::move(rbf));
-
-	// int n = 4; PolyLineGenerator::regular_polygon(pl, n);
-	//PolyLineGenerator::random_polygon(pl, n);
-
+	
+	// int n = 3; PolyLineGenerator::regular_polygon(pl, n);
 	// PolyLineGenerator::read_from_file(pl, input_dir + "duck.geogram");
-	//PolyLineGenerator::read_from_file(pl, input_dir + "cerf.geogram");
+	PolyLineGenerator::read_from_file(pl, input_dir + "cerf.geogram");
 	// PolyLineGenerator::read_from_file(pl, input_dir + "o.obj");
 	// PolyLineGenerator::read_from_file(pl, input_dir + "e.obj");
 	// PolyLineGenerator::read_from_file(pl, input_dir + "u.obj");
-	// SDFPointInit::shape(sdf, pl);
-	
+
+
+	// SDF sdf(std::move(rbf));
+
 
 	/* 
-	
 	bool flip_normals = false;
 	double default_sigma = 0.05; // wendland
 	//double default_sigma = 0.05; // gaussian
 
-	//SDFPointInit::shape(sdf, pl, 0., default_sigma, flip_normals);
-	
-	SDFPointInit::shape_sigma_edge_length(sdf, pl, 0., 0.5, flip_normals);
-
-	// SDFPointInit::shape_multiple(sdf, pl, 1, 0., 1.1, flip_normals);
-
-	//SDFPointInit::equaly_spaced_shape(sdf, pl, 12, 0., default_sigma, flip_normals);
-	
-// 1 point
+	// 1 point
 	//auto e = pl.iter_edges().begin().h ; sdf.add_func((e.from().pos().xy() + e.to().pos().xy())/2, 1., {0., 0.}, 1.);
 	
 
+	// SDFPointInit::circle(sdf, 10, [](auto p, auto n, auto r) -> FunctionCircular { return {p, 0., n, r};});
+	// SDFPointInit::shape(sdf, pl, [](auto p, auto n, auto r) -> FunctionCircular { return {p, 0., n, r/2};});
+	// SDFPointInit::shape_multiple(sdf, pl, 10, [](auto p, auto n, auto r) -> FunctionCircular { return {p, 0., n, r};});
+	// SDFPointInit::equaly_spaced_shape(sdf, pl, 10, [](auto p, auto n, auto r) -> FunctionCircular { return {p, 0., n, r};});
+
+	// auto algo = sdffitting::TestCircular(sdf, samples);
 	auto samples = samples::compute_edges_samples_normals(pl, 100, flip_normals);
 
-	//auto samples = sdffitting::samples::compute_equally_spaced_samples_normals(pl, 150);
-
 	//auto algo = sdffitting::AlphaBetaOnlyAddFitter(sdf, samples);
-
 	auto algo = sdffitting::ClusteringFitter(sdf, samples);
-
 	
 	algo.K = 2;
 	algo.margin = 1.;
@@ -78,10 +67,8 @@ int main(int argc, char** argv) {
 	algo.min_distance_points = 0.05;
 	algo.cluster_min_size = 2;
 	algo.error_threshold = 0.1;
-	
 
 	algo.ADD_POINT_ERR_THRESHOLD = 1.;
-
 	algo.default_sigma_add = default_sigma;
 
 	algo.fix_alpha_zero = false;
@@ -92,48 +79,29 @@ int main(int argc, char** argv) {
 	algo.lambda_distance = 1.;
 	algo.lambda_gradient = 1.;
 
-
 	int IT = 10;
 	// algo.fit(IT, IT, output_dir);
 
 	algo.resolve_ls();
 
-
 	*/
 
 	// TEST Elliptic
-	// SDF_Elliptic sdf(std::move(rbf));
-	SDF sdf(std::move(rbf));
-
-	int n = 3; PolyLineGenerator::regular_polygon(pl, n);
-	// PolyLineGenerator::read_from_file(pl, input_dir + "duck.geogram");
-	//PolyLineGenerator::read_from_file(pl, input_dir + "cerf.geogram");
-	// PolyLineGenerator::read_from_file(pl, input_dir + "o.obj");
-	// PolyLineGenerator::read_from_file(pl, input_dir + "e.obj");
-	// PolyLineGenerator::read_from_file(pl, input_dir + "u.obj");
+	
+	SDF_Elliptic sdf(std::move(rbf));
 
 
-	/*
-	for (const auto& e : pl.iter_edges()) {
-		auto v = e.to().pos() - e.from().pos();
+	auto NORMAL = [](const vec2& v) -> vec2 { return {-v.y, v.x}; };
 
-		sdf.add_func(
-				{
-				(e.from().pos() + (v/2)).xy(), 
-				0., 
-				{0., 0.}, 
-				v.xy()/1, 
-				UM::vec2(-v.y, v.x)/1
-				}
-				);
-	}
-	*/
+	SDFPointInit::shape(sdf, pl, [&](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, NORMAL(n) * (r/2), r/8 * n};});
+	// SDFPointInit::shape_multiple(sdf, pl, 10, [&](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, NORMAL(n) * r, n * r/4 };});
+	// SDFPointInit::equaly_spaced_shape(sdf, pl, 10, [&](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, NORMAL(n) * r, n * r/2 };});
 
-	SDFPointInit::shape_sigma_edge_length(sdf, pl, 0., 1., false);
+
 
 	auto samples = samples::compute_edges_samples_normals(pl, 100);
 	// auto algo = sdffitting_elliptic::TestEllipse(sdf, samples);
-	auto algo = sdffitting::TestCircular(sdf, samples);
+	auto algo = sdffitting_elliptic::TestEllipse(sdf, samples);
 
 	algo.resolve_ls();
 

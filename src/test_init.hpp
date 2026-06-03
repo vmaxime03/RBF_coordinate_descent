@@ -8,86 +8,61 @@
 #include <algorithm>
 #include <cassert>
 #include <cfloat>
+#include <concepts>
 #include <cstddef>
 #include <cstdlib>
 #include <numbers>
 #include <random>
 
 
-#include "sdf.hpp"
+#include "sdf_base.hpp"
 #include "ultimaille/primitive_geometry.h"
 
+
+#define _TEMPLATE_SDF_ \
+	template<typename S, typename F>\
+	requires 	std::derived_from<S, SDF_Base<typename S::function_type>>\
+	&& 		std::same_as<std::invoke_result_t<F, UM::vec2, UM::vec2, double>, typename S::function_type>\
+
+
+
 namespace SDFPointInit {
-	void circle(SDF& sdf, int npoint, double R = 1.0, double offset = 0., double alpha = 1., double sigma = 1., bool flip_beta = false) { 
 
-		const double anglep = 2 * std::numbers::pi / npoint;
+	_TEMPLATE_SDF_
+		void circle(S& sdf, int npoint, const F& func, double R = 1.0, double offset = 0.) { 
+			const double anglep = 2 * std::numbers::pi / npoint;
 
-		for (int i = 0; i < npoint; ++i) {
-			UM::vec2 p = {R * cos(i * anglep + offset), R * sin(i * anglep + offset)};
-			sdf.add_func({
-				p,
-				alpha,
-				(flip_beta ? -1 : 1) * -p.normalized(),
-				sigma
-			});
-		}
-	}
-
-	void shape(SDF& sdf, UM::PolyLine& pl, double alpha = 1., double sigma = 1., bool flip_beta = false) {
-
-		int npoint = pl.nedges();
-
-
-		int i = 0;
-
-		for (const auto& e : pl.iter_edges()) {
-
-			auto v = e.to().pos() - e.from().pos();
-
-			sdf.add_func({
-				(e.from().pos() + (v / 2)).xy(),
-				alpha,
-				(flip_beta ? -1 : 1) * UM::vec2(-v.y, v.x).normalized(),
-				sigma
-			});
-
-			++i;
+			for (int i = 0; i < npoint; ++i) {
+				UM::vec2 p = {R * cos(i * anglep + offset), R * sin(i * anglep + offset)};
+				sdf.add_func(func(p, -p.normalized(), 2*std::numbers::pi*R / npoint));
+			}
 		}
 
-	}
-
-	// 1 point per edge with sigma = coef * len(edge)
-	void shape_sigma_edge_length(SDF& sdf, UM::PolyLine& pl, double alpha = 1., double sigma_coef = 1., bool flip_beta = false) {
-
+	_TEMPLATE_SDF_
+	void shape(S& sdf, UM::PolyLine& pl, const F& func) {
 		int npoint = pl.nedges();
 
 		int i = 0;
 
 		for (const auto& e : pl.iter_edges()) {
-
 			auto v = e.to().pos() - e.from().pos();
-
-			sdf.add_func({
-				(e.from().pos() + (v / 2)).xy(),
-				alpha,
-				(flip_beta ? -1 : 1) * UM::vec2(-v.y, v.x).normalized(),
-				v.norm() * sigma_coef
-			});;
-
+			sdf.add_func(func((e.from().pos() + (v / 2)).xy(), UM::vec2(-v.y, v.x).normalized(), v.norm()));
 			++i;
 		}
 
 	}
+
 
 	// n point per edge with sigma = edge / (n + 1) * sigma_coef
-	void shape_multiple(SDF& sdf, UM::PolyLine& pl, size_t n, double alpha = 1., double sigma_coef = 1., bool flip_beta = false) {
+	_TEMPLATE_SDF_
+	void shape_multiple(S& sdf, UM::PolyLine& pl, size_t n, const F& func) {
 		for (const auto& e : pl.iter_edges()) {
 			UM::vec2 d = e.to().pos().xy() - e.from().pos().xy();
 			auto step = d / double(n+1);
 			UM::vec2 normal = UM::vec2(-d.y, d.x).normalized();
 			for (size_t i = 1; i <= n; ++i) {
 				UM::vec2 p = e.from().pos().xy() + i * step;
-				sdf.add_func({p, alpha, (flip_beta ? -1 : 1) * normal, step.norm() * sigma_coef});
+				sdf.add_func(func(p, normal, step.norm()));
 			}
 		}
 	}
@@ -95,7 +70,8 @@ namespace SDFPointInit {
 
 	// Equally spaced point along the polyline 
 
-	void equaly_spaced_shape(SDF& sdf, UM::PolyLine& pl, int n, double alpha = 1., double sigma = 1., bool flip_beta = false) {
+	_TEMPLATE_SDF_
+	void equaly_spaced_shape(S& sdf, UM::PolyLine& pl, int n, const F& func) {
 
 		double total = 0.0;
 		for (const auto& e : pl.iter_edges()) {
@@ -116,12 +92,11 @@ namespace SDFPointInit {
 
 			while (next <= traveled + len) {
 				double t = (next - traveled) / len;
-				sdf.add_func({
+				sdf.add_func(func(
 						s.a.xy() + t * v,
-						alpha,
-						(flip_beta ? -1 : 1) * UM::vec2(-v.y, v.x).normalized(),
-						sigma
-						});
+						UM::vec2(-v.y, v.x).normalized(),
+						step
+						));
 				next += step;
 			}
 
@@ -129,7 +104,6 @@ namespace SDFPointInit {
 		}
 
 	}
-
 }
 
 namespace PolyLineGenerator {

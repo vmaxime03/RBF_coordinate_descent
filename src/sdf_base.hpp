@@ -3,13 +3,23 @@
 
 #include "rbf.hpp"
 #include "ultimaille/algebra/vec.h"
+#include <concepts>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <vector>
 
 
+struct FunctionBase {
+	UM::vec2 point;
+	double alpha;
+	UM::vec2 beta;
+};
+
 template<typename Function>
+requires std::derived_from<Function, FunctionBase>
 struct SDF_Base {
+	using function_type = Function;
+
 	std::vector<Function> fonctions;
 	std::vector<bool> active;
 	std::unique_ptr<RBF> rbf;

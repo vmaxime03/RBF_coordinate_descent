@@ -10,15 +10,12 @@
 #include <vector>
 #include "sdf_base.hpp"
 
-struct FonctionElliptic {
-	UM::vec2 point;
-	double alpha;
-	UM::vec2 beta;
+struct FunctionElliptic : FunctionBase {
 	UM::vec2 ellipse_minor;
 	UM::vec2 ellipse_major;
 };
 
-struct SDF_Elliptic : SDF_Base<FonctionElliptic> {
+struct SDF_Elliptic : SDF_Base<FunctionElliptic> {
 	using SDF_Base::SDF_Base;
 
 	inline double fi(size_t i, UM::vec2 pos) const override {
