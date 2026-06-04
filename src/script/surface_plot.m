@@ -29,7 +29,7 @@ y = linspace(miny, maxy, size(Z, 1));
 zmax = max(Z(:));
 zmin = min(Z(:));
 
-zfloor = zmax + 0.1;
+zfloor = zmax;
 
 negative_lev = linspace(zmin, 0, 10)(1:end-1);
 positive_lev = linspace(0, zmax, 10)(2:end);
@@ -53,7 +53,7 @@ hGrad = quiver3(X(1:n:end, 1:n:end), Y(1:n:end, 1:n:end), zeros(size(X(1:n:end, 
 pl = dlmread(plname, ',');
 hPoly = [];
 for i = 1:size(pl, 1)
-    h = plot3([pl(i,1), pl(i,3)], [pl(i,2), pl(i,4)], [-0.01, 0.01], 'g-', 'LineWidth', 2);
+    h = plot3([pl(i,1), pl(i,3)], [pl(i,2), pl(i,4)], [zfloor, zfloor], 'g-', 'LineWidth', 2);
     hPoly = [hPoly, h];
 end
 
