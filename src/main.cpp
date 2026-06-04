@@ -5,6 +5,7 @@
 #include <csignal>
 #include <cstddef>
 #include <filesystem>
+#include <numbers>
 #include <utility>
 #include "rbf.hpp"
 #include "test_init.hpp"
@@ -14,6 +15,7 @@
 #include "output.hpp"
 #include "samples.hpp"
 #include "algo_base_elliptic.hpp"
+#include "algo_ellipse_imp.hpp"
 
 using namespace UM;
 
@@ -26,16 +28,17 @@ int main(int argc, char** argv) {
 
 
 	PolyLine pl;
-	auto rbf = std::make_unique<Gaussian>();
+	auto rbf = std::make_unique<WendlandC2>();
 	
 	
-	// int n = 3; PolyLineGenerator::regular_polygon(pl, n);
+	// int n = 10; PolyLineGenerator::regular_polygon(pl, n);
 	// PolyLineGenerator::read_from_file(pl, input_dir + "duck.geogram");
-	PolyLineGenerator::read_from_file(pl, input_dir + "cerf.geogram");
-	// PolyLineGenerator::read_from_file(pl, input_dir + "o.obj");
+	// PolyLineGenerator::read_from_file(pl, input_dir + "cerf.geogram");
+	PolyLineGenerator::read_from_file(pl, input_dir + "o.obj");
 	// PolyLineGenerator::read_from_file(pl, input_dir + "e.obj");
 	// PolyLineGenerator::read_from_file(pl, input_dir + "u.obj");
 
+	// PolyLineGenerator::isoceles_triangle(pl, std::numbers::pi / 4);
 
 	// SDF sdf(std::move(rbf));
 
@@ -49,12 +52,12 @@ int main(int argc, char** argv) {
 	//auto e = pl.iter_edges().begin().h ; sdf.add_func((e.from().pos().xy() + e.to().pos().xy())/2, 1., {0., 0.}, 1.);
 	
 
-	// SDFPointInit::circle(sdf, 10, [](auto p, auto n, auto r) -> FunctionCircular { return {p, 0., n, r};});
-	// SDFPointInit::shape(sdf, pl, [](auto p, auto n, auto r) -> FunctionCircular { return {p, 0., n, r/2};});
-	// SDFPointInit::shape_multiple(sdf, pl, 10, [](auto p, auto n, auto r) -> FunctionCircular { return {p, 0., n, r};});
-	// SDFPointInit::equaly_spaced_shape(sdf, pl, 10, [](auto p, auto n, auto r) -> FunctionCircular { return {p, 0., n, r};});
+	// SDFPointInit::circle(sdf, 10, [](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, r};});
+	// SDFPointInit::shape(sdf, pl, [](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, r/2};});
+	// SDFPointInit::shape_multiple(sdf, pl, 10, [](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, r};});
+	// SDFPointInit::equaly_spaced_shape(sdf, pl, 10, [](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, r};});
 
-	// auto algo = sdffitting::TestCircular(sdf, samples);
+	// auto algo = sdffitting::TestElliptic(sdf, samples);
 	auto samples = samples::compute_edges_samples_normals(pl, 100, flip_normals);
 
 	//auto algo = sdffitting::AlphaBetaOnlyAddFitter(sdf, samples);
@@ -93,17 +96,26 @@ int main(int argc, char** argv) {
 
 	auto NORMAL = [](const vec2& v) -> vec2 { return {-v.y, v.x}; };
 
-	SDFPointInit::shape(sdf, pl, [&](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, NORMAL(n) * (r/2), r/8 * n};});
+	SDFPointInit::shape(sdf, pl, [&](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, NORMAL(n) * (r*1.5), r/0.5 * n};});
 	// SDFPointInit::shape_multiple(sdf, pl, 10, [&](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, NORMAL(n) * r, n * r/4 };});
 	// SDFPointInit::equaly_spaced_shape(sdf, pl, 10, [&](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, NORMAL(n) * r, n * r/2 };});
 
 
 
-	auto samples = samples::compute_edges_samples_normals(pl, 100);
+	auto samples = samples::compute_edges_samples_normals(pl, 10);
 	// auto algo = sdffitting_elliptic::TestEllipse(sdf, samples);
-	auto algo = sdffitting_elliptic::TestEllipse(sdf, samples);
+	auto algo = sdffitting_elliptic::TODONAMEFitter(sdf, samples);
 
+
+
+	algo.adapt_minor();
+	algo.decimate(std::numbers::pi / 18);
+	algo.adapt_minor();
+
+
+	algo.lambda_distance = 100;
 	algo.resolve_ls();
+
 
 
 	// OUTPUT
@@ -117,7 +129,7 @@ int main(int argc, char** argv) {
 	output::sample_sdf(sdf, -1. - samples_offset, -1. - samples_offset, 1. + samples_offset, 1. + samples_offset, output_dir + "sdf.csv", 500);
 	std::ofstream(output_dir + "last.json") << sdf.to_json().dump(2);
 
-	std::cout << "FINAL SDF:\n" << sdf.to_string() << std::endl;
+	// std::cout << "FINAL SDF:\n" << sdf.to_string() << std::endl;
 	return 0;
 
 

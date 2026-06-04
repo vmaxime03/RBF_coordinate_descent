@@ -11,8 +11,8 @@
 #include "sdf_base.hpp"
 
 struct FunctionElliptic : FunctionBase {
-	UM::vec2 ellipse_minor;
 	UM::vec2 ellipse_major;
+	UM::vec2 ellipse_minor;
 };
 
 struct SDF_Elliptic : SDF_Base<FunctionElliptic> {

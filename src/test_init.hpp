@@ -194,6 +194,34 @@ void read_from_file(UM::PolyLine& pl, const std::string& fname) {
 }
 
 
+void isoceles_triangle(UM::PolyLine& pl, double angle) {
+	assert (angle < std::numbers::pi && angle > 0);
+
+	pl.points.create_points(3);
+
+	double hsin = std::sin(angle/2);
+	double hcos = std::cos(angle/2);
+	
+
+
+	pl.points[0] = UM::vec3{-hsin, -hcos/2, 0.}.normalized();
+	pl.points[1] = UM::vec3{hsin, -hcos/2, 0.}.normalized();
+	pl.points[2] = UM::vec3{0., hcos/2, 0.}.normalized();
+
+	pl.create_edges(3);
+
+	pl.vert(0, 0) = 0;
+	pl.vert(0, 1) = 1;
+	pl.vert(1, 0) = 1;
+	pl.vert(1, 1) = 2;
+	pl.vert(2, 0) = 2;
+	pl.vert(2, 1) = 0;
+
+	pl.connect();
+
+}
+
+
 // claude
 void random_polygon(UM::PolyLine& pl, int nedge, unsigned int seed = 42) {
     assert(nedge > 2);

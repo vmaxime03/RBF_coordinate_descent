@@ -63,6 +63,9 @@ namespace sdffitting_elliptic {
 				}
 			}
 
+			DEBUG("LS init");
+			auto t1 = std::chrono::high_resolution_clock::now();
+
 			for (const auto& s : samples) {
 				LinExpr value_res;
 				LinExpr grad_res[2];
@@ -134,7 +137,15 @@ namespace sdffitting_elliptic {
 				ls.add_to_energy( std::sqrt(lambda_gradient) * (grad_res[1] - n[1]));
 			}
 
+			auto t2 = std::chrono::high_resolution_clock::now();
+			DEBUG("LS init terminated in " << (std::chrono::duration<double, std::milli>(t2 - t1).count()) << " ms");
+
 			ls.solve();
+
+			auto t3 = std::chrono::high_resolution_clock::now();
+
+			DEBUG("LS solve terminated in " << (std::chrono::duration<double, std::milli>(t3 - t2).count()) << " ms");
+
 
 			for (size_t i = 0; i < sdf.fonctions.size(); ++i) {
 				sdf.fonctions[i].alpha   = ls.value(i*3);

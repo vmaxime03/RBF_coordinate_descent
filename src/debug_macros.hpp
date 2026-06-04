@@ -6,9 +6,10 @@
 #endif
 
 #if __DEBUG 
-#define DEBUG(s) {\
-	std::cerr << "[" << __FILE__ <<  "][" << __FUNCTION__ << "][" << __LINE__ << "]: " << s << std::endl;\
-}
+#define DEBUG(s) do { \
+    std::cerr << "[" << __FILE__ << "][" << __FUNCTION__ << "][" << __LINE__ << "]: " \
+              << s << std::endl; \
+} while (0)
 #else 
 #define DEBUG(s)
 #endif
