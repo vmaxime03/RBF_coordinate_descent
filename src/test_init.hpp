@@ -2,6 +2,7 @@
 #define TEST_POLYLINE_HPP__
 
 
+#include "debug_macros.hpp"
 #include "ultimaille/algebra/vec.h"
 #include "ultimaille/io/by_extension.h"
 #include "ultimaille/polyline.h"
@@ -13,10 +14,12 @@
 #include <cstdlib>
 #include <numbers>
 #include <random>
+#include <vector>
 
 
 #include "sdf_base.hpp"
 #include "ultimaille/primitive_geometry.h"
+#include "ultimaille/surface.h"
 
 
 #define _TEMPLATE_SDF_ \
@@ -191,6 +194,63 @@ void read_from_file(UM::PolyLine& pl, const std::string& fname) {
 
 	pl.connect();
 
+}
+
+void read_polyline_directly(UM::PolyLine& pl, const std::string& fname) {
+
+	UM::read_by_extension(fname, pl);
+	pl.connect();
+}
+
+std::vector<std::unique_ptr<UM::PolyLine>> extract_subpolylines(UM::PolyLine& pl) {
+	pl.connect();
+    std::vector<std::unique_ptr<UM::PolyLine>> discovered_lines;
+
+    std::unique_ptr<UM::PolyLine> curr_pl = nullptr;
+    int curr_edge_idx = 0;
+    int loop_start_vertex_id = -1;
+    int last_vertex_id = -1;
+
+    for (auto edge : pl.iter_edges()) {
+        
+        if (curr_pl && edge.from() != last_vertex_id) {
+            discovered_lines.push_back(std::move(curr_pl));
+            curr_pl = nullptr; 
+        }
+
+        if (!curr_pl) {
+            curr_pl = std::make_unique<UM::PolyLine>();
+            curr_edge_idx = 0;
+            loop_start_vertex_id = edge.from();
+            curr_pl->points.push_back(edge.from().pos());
+        }
+
+        curr_pl->create_edges(1);
+        curr_pl->points.push_back(edge.to().pos());
+
+        if (edge.to() == loop_start_vertex_id) {
+            curr_pl->vert(curr_edge_idx, 0) = curr_edge_idx;
+            curr_pl->vert(curr_edge_idx, 1) = 0;
+
+			curr_pl->connect();
+            discovered_lines.push_back(std::move(curr_pl));
+            curr_pl = nullptr; // Clear state
+        } 
+        else {
+            curr_pl->vert(curr_edge_idx, 0) = curr_edge_idx;
+            curr_pl->vert(curr_edge_idx, 1) = curr_edge_idx + 1;
+
+            last_vertex_id = edge.to();
+            curr_edge_idx++;
+        }
+    }
+
+    if (curr_pl) {
+		curr_pl->connect();
+        discovered_lines.push_back(std::move(curr_pl));
+    }
+
+    return discovered_lines;
 }
 
 

@@ -6,6 +6,7 @@
 #include <concepts>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <tuple>
 #include <vector>
 
 
@@ -24,29 +25,60 @@ struct SDF_Base {
 	std::vector<bool> active;
 	std::unique_ptr<RBF> rbf;
 
-	virtual inline double fi(size_t i, UM::vec2 pos) const = 0;
-	virtual inline UM::vec2 gi(size_t i, UM::vec2 pos) const = 0;
+	virtual inline double fi(const size_t i, const UM::vec2 pos) const = 0;
+	virtual inline UM::vec2 gi(const size_t i, const UM::vec2 pos) const = 0;
 
 	explicit SDF_Base(std::unique_ptr<RBF> _rbf) : rbf(std::move(_rbf)) {};
 	virtual ~SDF_Base() = default;
 
-	double distance(UM::vec2 pos) {
+	virtual double distance(const UM::vec2 pos) {
 		double t = 0.;
+#pragma omp parallel for reduction(+:t)
 		for (size_t i = 0; i < fonctions.size(); ++i) {
 			if (!active[i]) continue;
 			t += fi(i, pos);
 		}
 		return t;
 	}
-	UM::vec2 gradient(UM::vec2 pos) {
-		UM::vec2 grad(0., 0.);
+	virtual UM::vec2 gradient(const UM::vec2 pos) {
+		double gx = 0.;
+		double gy = 0.;
+#pragma omp parallel for reduction(+:gx,gy)
 		for (size_t i = 0; i < fonctions.size(); ++i) {
 			if (!active[i]) continue;
-			grad += gi(i, pos);	
+			auto grad = gi(i, pos);	
+			gx += grad.x;
+			gy += grad.y;
 		
 		}
-		return grad;
+		return {gx, gy};
 	}
+
+
+
+	virtual inline std::tuple<double, UM::vec2> evali(const size_t i, const UM::vec2 pos) const = 0;
+
+	virtual std::tuple<double, UM::vec2> eval(const UM::vec2 pos) {
+
+		double d = 0.;
+		double gx = 0.;
+		double gy = 0.;
+
+		#pragma omp parallel for reduction(+:d,gx,gy)
+		for (size_t i = 0; i < fonctions.size(); ++i) {
+			if (!active[i]) continue;
+			auto [di, gi] =  evali(i, pos);
+			d += di;
+			gx += gi.x;
+			gy += gi.y;
+
+		}
+		return {d, {gx, gy}};
+	}
+
+
+
+
 
 	inline void add_func(const Function& f) {
 		fonctions.push_back(f);

@@ -4,6 +4,7 @@
 #include "debug_macros.hpp"
 #include "sdf.hpp"
 #include "samples.hpp"
+#include "ultimaille/algebra/mat.h"
 #include "ultimaille/algebra/vec.h"
 #include "ultimaille/polyline.h"
 #include "ultimaille/helpers/knn.h"
@@ -48,7 +49,25 @@ namespace sdffitting_elliptic {
 
 		void resolve_ls() {
 
-			if (sdf.fonctions.empty()) return;
+
+			TIME_DEBUG_INIT();
+			std::vector<std::tuple<UM::mat2x2, UM::mat2x2>> cache(sdf.fonctions.size());
+
+#pragma omp parallel for
+			for (size_t i = 0; i < sdf.fonctions.size(); ++i) {
+				auto A = sdf.fonctions[i].ellipse_major;
+				auto B = sdf.fonctions[i].ellipse_minor;
+
+				auto a2 = A.norm2();
+				auto b2 = B.norm2();
+
+				UM::mat2x2 M = {{{A.x / a2, A.y / a2}, {B.x / b2, B.y / b2 }}};
+				auto Mt = M.transpose();
+
+				cache[i] = {M, Mt};
+			}
+
+			TIME_DEBUG("cache init");
 
 			LeastSquares ls(3 * sdf.fonctions.size());
 
@@ -63,12 +82,15 @@ namespace sdffitting_elliptic {
 				}
 			}
 
-			DEBUG("LS init");
-			auto t1 = std::chrono::high_resolution_clock::now();
 
+			DEBUG("LS init");
+			TIME_DEBUG_INIT();
+
+#pragma omp parallel for schedule(dynamic)
 			for (const auto& s : samples) {
 				LinExpr value_res;
 				LinExpr grad_res[2];
+
 
 				for (size_t i = 0; i < sdf.fonctions.size(); ++i) {
 					if (!sdf.active[i]) continue;
@@ -82,32 +104,19 @@ namespace sdffitting_elliptic {
 					// VALUE TERM 
 					auto d = s.point - sdf.fonctions[i].point;
 
-
-					auto A = sdf.fonctions[i].ellipse_major;
-					auto B = sdf.fonctions[i].ellipse_minor;
-
-					auto a2 = A.norm2();
-					auto b2 = B.norm2();
-
-					if (a2 <= 1e-14 || b2 <= 1e-14) continue;
-
-					UM::mat2x2 M = {{{A.x / a2, A.y / a2}, {B.x / b2, B.y / b2 }}};
+					auto [M, Mt] = cache[i];
 
 					auto y = M * d;
 
-					auto Mt = M.transpose();
-
 					double e = y.norm();
 
-					if (e <= 1e-14) continue;
+					if (e <= 1e-14 || e >= 1) continue;
 
 					auto grad_e = (Mt * y) / y.norm();
-
 
 					auto phi = sdf.rbf->f(e, 1.);
 					auto dphi = sdf.rbf->df(e, 1.);
 					auto ddphi = sdf.rbf->ddf(e, 1.);
-
 
 					LinExpr term = alpha * phi + dphi * (betax * grad_e.x + betay * grad_e.y);
 
@@ -131,20 +140,26 @@ namespace sdffitting_elliptic {
 					}
 				}
 
+
 				vec2 n = s.normal;
-				ls.add_to_energy( std::sqrt(lambda_distance) * value_res);
-				ls.add_to_energy( std::sqrt(lambda_gradient) * (grad_res[0] - n[0]));
-				ls.add_to_energy( std::sqrt(lambda_gradient) * (grad_res[1] - n[1]));
+
+				LinExpr equality_x = (grad_res[0] - n[0]);
+				LinExpr equality_y = (grad_res[1] - n[1]);
+
+#pragma omp critical
+				{
+					ls.add_to_energy(lambda_distance * value_res);
+					ls.add_to_energy(equality_x);
+					ls.add_to_energy(equality_y);
+				}
 			}
 
-			auto t2 = std::chrono::high_resolution_clock::now();
-			DEBUG("LS init terminated in " << (std::chrono::duration<double, std::milli>(t2 - t1).count()) << " ms");
+			TIME_DEBUG("LS init terminated");
 
 			ls.solve();
 
-			auto t3 = std::chrono::high_resolution_clock::now();
 
-			DEBUG("LS solve terminated in " << (std::chrono::duration<double, std::milli>(t3 - t2).count()) << " ms");
+			TIME_DEBUG("LS solve");
 
 
 			for (size_t i = 0; i < sdf.fonctions.size(); ++i) {
@@ -153,6 +168,7 @@ namespace sdffitting_elliptic {
 				sdf.fonctions[i].beta.y  = ls.value(i*3+2);
 			}
 		}
+
 
 
 

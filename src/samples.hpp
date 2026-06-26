@@ -84,6 +84,46 @@ namespace samples {
 	
 	}
 
+
+	Samples compute_edges_samples_normals_include_end(UM::PolyLine& pl, size_t n = 10, bool flip_normals = false) {
+		Samples samples;
+
+		size_t loop_count = 0;
+		auto prev_e = pl.iter_edges().begin().h;
+
+		for (const auto& e : pl.iter_edges()) {
+
+			// if previous edge closed a loop, start a new one
+			if (prev_e.to() != e.from()) {
+				++loop_count;
+			}
+
+			auto d = UM::Segment3(e).vector().xy();
+			auto step = d / double(n-1);
+			auto normal = UM::vec2(-d.y, d.x).normalized();
+
+			for (size_t i = 0; i < n; ++i) {
+				auto p = e.from().pos().xy() + i * step;
+
+				samples.push_back({
+						p,
+						(flip_normals ? -1 : 1) * normal,
+						loop_count
+						});
+
+				
+			}
+
+			prev_e = e;
+		}
+
+		compute_next_prev(samples);
+		return samples;
+
+	
+	}
+
+
 	Samples compute_equally_spaced_samples_normals(UM::PolyLine& pl, int n, bool flip_normals = false) {
 		Samples samples;
 

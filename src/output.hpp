@@ -18,8 +18,7 @@ void sample_sdf(auto& sdf, double minx, double miny, double maxx, double maxy, c
 		for (int i = 0; i < w; ++i) {
 			const double x = minx + (double(i) / double(w - 1)) * (maxx - minx);
 			const double y = miny + (double(j) / double(h - 1)) * (maxy - miny);
-			double dist = sdf.distance({x, y});
-			UM::vec2 grad = sdf.gradient({x, y});
+			auto [dist, grad] = sdf.eval({x, y});
 			out << x << "," << y << "," << dist << "," << grad.x << "," << grad.y ;
 
 			if (i < w - 1) out << ",";

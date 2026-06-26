@@ -50,18 +50,22 @@ struct WendlandC2 : RBF {
         return s*s*s*s * (4.0*t + 1.0);
     }
 
-    inline double df(double r, double e) const override {
+  inline double df(double r, double e) const override {
         double t = r / e;
         if (t >= 1.0) return 0.0;
         double s = 1.0 - t;
-        return (s*s*s * (-4.0*(4.0*t + 1.0)) + s*s*s*s * 4.0) / e;
+        
+        // Simplified from your original expression
+        return (-20.0 * t * s * s * s) / e;
     }
 
     inline double ddf(double r, double e) const override {
         double t = r / e;
         if (t >= 1.0) return 0.0;
         double s = 1.0 - t;
-        return (s*s * (20.0 * (4.0*t + 1.0) - 8.0*s*4.0 - 4.0*s*4.0)) / (e*e);
+        
+        // Corrected and simplified expression
+        return (20.0 * s * s * (4.0 * t - 1.0)) / (e * e);
     }
 
     inline std::string name() const override { return "wendlandC2"; }

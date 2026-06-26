@@ -1,9 +1,9 @@
-.PHONY: clean anim gif octave build run correlation surface save
+.PHONY: clean anim gif octave build run run_smoother correlation surface save
 
 CC  ?= gcc
 CXX ?= g++
 
-DATA ?= build/src/output/test
+DATA ?= run_output/test
 
 build:
 	mkdir -p build
@@ -12,6 +12,9 @@ build:
 
 run:
 	cd build/src && ./main
+
+run_smoother:
+	cd build/src && ./smoother
 
 save:
 	cp -r $(DATA) ./output/save_$(shell date +%Y%m%d_%H%M%S)
@@ -28,6 +31,9 @@ octave:
 
 surface:
 	cd build/src/script && octave surface_plot.m ./../../../$(DATA)/
+
+colormap:
+	cd build/src/script && octave colormap_plot.m ./../../../$(DATA)/
 
 samples_error:
 	cd build/src/script && octave samples_plot.m ./../../../$(DATA)/
