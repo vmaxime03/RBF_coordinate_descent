@@ -4,15 +4,15 @@ Put the quad mesh and polyline in *assets/*
 
 ```json
 {
-  "bord":"bord.obj",                  // border for the smoother
-  "quad":"quad_mesh.obj",             // quad mesh to smooth
-  "smoother_w": 3,                    // weigth of the "border points stay on the border" constraint, work better when >= 3
+  "bord":"bord.obj",                    // border for the smoother
+  "quad":"quad_mesh.obj",               // quad mesh to smooth
+  "smoother_w": double,                 // weight of the "border points stay on the border" constraint, need to be increased for lower target_interpolant_neighbors
 
-  "nsample": 5,                       // number of samples for each polyline segment
-  "target_function_width": 0.075,     // distance field width around the polyline
-  "target_interpolant_neighbors": 6,  // inter function influence 
-  "lambda_distance": 1,               // weigth of the 0 iso accuracy in the least square
-  "export_field": true                // for distance fiel visualization
+  "nsample": int,                       // number of samples for each polyline segment 
+  "target_function_width": double,      // distance field width around the polyline, depends of the mesh coordiante space
+  "target_interpolant_neighbors": int,  // inter function influence (>= 2)
+  "lambda_distance": double,            // weight of the 0 iso accuracy in the least square (1 is fine)
+  "export_field": true                  // for distance fiel visualization
 }
 ```
 
