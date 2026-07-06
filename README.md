@@ -35,8 +35,9 @@ make colormap
 ```
 
 
-** TODO 
+### TODO 
 - Refactor
+- Find some of the parameters automaticaly (*smoother_w*, *taget_function_width*)
 - Quickly find query point fonctions to sum over
 - Multi frontier quad mmesh 
 
