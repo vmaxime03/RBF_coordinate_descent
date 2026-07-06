@@ -31,7 +31,8 @@
 #include "samples.hpp"
 #include "algo_base_elliptic.hpp"
 #include "algo_ellipse_imp.hpp"
-#include "grid2d.h"
+
+#include "nlohmann/json.hpp"
 
 using namespace UM;
 using Clock = std::chrono::high_resolution_clock;
@@ -47,24 +48,67 @@ inline double chi_deriv(double eps, double det) {
 }
 
 int main(int argc, char** argv) {
-    // if (argc < 3) {
-    //     std::println("Usage: {} bord.obj quads.obj", argv[0]);
-    //
-    //     return 0;
-    // }
-
-
+	
 	const std::string input_dir = INPUT_DIR;
-	const std::string plfile = input_dir + "lapinpluslisseplusdense_bord.obj";
-	const std::string quadfile = input_dir + "lapinpluslisseplusdense_quad_mesh.obj";
+
+	std::string plfilename = "bord.obj";
+	std::string quadfilename = "quad_mesh.obj";
+
+	int polyline_segmant_nsample = 5;
+	double target_function_width = 0.075;
+	int target_interpolant_neighbors = 6;
+	double lambda_distance = 1.;
+	double smoother_w = 3.0;
+	bool export_field = true;
+	int neighborhood_size = target_interpolant_neighbors * 2;
+
+	if (argc > 1) {
+		std::ifstream config_file(argv[1]);
+
+		if (!config_file) {
+			std::println(stderr, "Error: Could not open or find configuration file '{}'", argv[1]);
+			return 1;
+		}
+
+		nlohmann::json config;
+		try {
+			config_file >> config;
+		} catch (const std::exception& e) {
+			std::println(stderr, "Error: invalid JSON in '{}': {}", argv[1], e.what());
+			return 1;
+		}
+		plfilename                    = config.value("bord", plfilename);
+		quadfilename                  = config.value("quad", quadfilename);
+		polyline_segmant_nsample      = config.value("nsample", polyline_segmant_nsample);
+		target_function_width         = config.value("target_function_width", target_function_width);
+		target_interpolant_neighbors  = config.value("target_interpolant_neighbors", target_interpolant_neighbors);
+		lambda_distance               = config.value("lambda_distance", lambda_distance);
+		smoother_w                    = config.value("smoother_w", smoother_w);
+		export_field                  = config.value("export_field", export_field);
+		std::println("Loaded configuration from '{}'", argv[1]);
+	}
+    std::println(
+		"Parameters :\n"
+        "  bord                         = {}\n"
+        "  quads                        = {}\n"
+        "  nsample                      = {}\n"
+        "  target_function_width        = {}\n"
+        "  target_interpolant_neighbors = {}\n"
+        "  lambda_distance              = {}\n"
+        "  smoother_w                   = {}\n"
+        "  export_field                 = {}\n",
+        plfilename, quadfilename, polyline_segmant_nsample, target_function_width, target_interpolant_neighbors, lambda_distance, smoother_w, export_field);
+
+
+	std::string plfile = INPUT_DIR + plfilename;
+	std::string quadfile = INPUT_DIR + quadfilename;
+
 
 	const std::string output_dir = OUTPUT_DIR;
 	std::filesystem::remove_all(output_dir);
 	std::filesystem::create_directories(output_dir);
 	std::filesystem::create_directories(output_dir + "smoother/");
 	std::filesystem::create_directories(output_dir + "test/");
-
-
 
 	// SDF INIT
 	auto rbf = std::make_unique<WendlandC2>();
@@ -76,38 +120,32 @@ int main(int argc, char** argv) {
 	write_by_extension(output_dir + "smoother/bord.obj", pl);
 
 
-	double maxx = 0;
-	double maxy = 0;
-
+	
 
 	auto NORMAL = [](const vec2& v) -> vec2 { return {-v.y, v.x}; };
 	SDFPointInit::shape(sdf, pl, [&](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, NORMAL(n) * r*0.5, r*0.5*n};});
-
-	auto samples = samples::compute_edges_samples_normals(pl, 5);
-
+	auto samples = samples::compute_edges_samples_normals(pl, polyline_segmant_nsample);
 	auto algo = sdffitting_elliptic::TODONAMEFitter(sdf, samples);
+	algo.fit_ellipses_radius(target_function_width, target_interpolant_neighbors);
 
-	algo.adapt_minor(1.0);
-	TIME_DEBUG("adapt minor");
-	algo.decimate(1e-4, false);
-	TIME_DEBUG("decimate");
-	algo.fit_ellipses_radius(0.1, 1);
 	TIME_DEBUG("fit ellipse");
-	algo.lambda_distance = 100.;
+	algo.lambda_distance = lambda_distance;
 	algo.resolve_ls();
 	sdf.optimize();
 	TIME_DEBUG("sdf optimization");
-	sdf.max_neighbors = 10;
 
-	// output::export_samples(samples, output_dir + "samples.csv");
-	output::export_polyline(pl, output_dir + "test/polyline.csv");
-	output::export_sdf(sdf, output_dir + "test/sdf_params.csv");
-	double samples_offset = 0.05; // = default_sigma
-	output::sample_sdf(sdf, -1. - samples_offset, -1. - samples_offset, 1. + samples_offset, 1. + samples_offset, output_dir + "test/sdf.csv", 1000);
-	// std::cout << "FINAL SDF:\n" << sdf.to_string() << std::endl;
-	
-	TIME_DEBUG("export udf");
-	
+	sdf.neighborhood_size = neighborhood_size;
+
+	if (export_field) {
+		// output::export_samples(samples, output_dir + "samples.csv");
+		output::export_polyline(pl, output_dir + "test/polyline.csv");
+		output::export_sdf(sdf, output_dir + "test/sdf_params.csv");
+		double samples_offset = target_function_width; 
+		output::sample_sdf(sdf, -1. - samples_offset, -1. - samples_offset, 1. + samples_offset, 1. + samples_offset, output_dir + "test/sdf.csv", 1000);
+		// std::cout << "FINAL SDF:\n" << sdf.to_string() << std::endl;
+		TIME_DEBUG("export udf");
+
+	}
 
 	// LISSEUR
     Quads m;
@@ -232,14 +270,12 @@ int main(int argc, char** argv) {
             vec2 a = {X[2*h.from()], X[2*h.from()+1]};
             vec2 b = {X[2*h.to()  ], X[2*h.to()  +1]};
 
-            double w = 1e-0; // TODO
+            double w = smoother_w; // TODO
             for (double t=0; t<=1; t+=1e-2) {
                 vec2 p = a*(1-t) + t*b;
 
-				// TODO
                 auto [val, grd] = sdf.eval(p); 
-
-
+				
                 F += w * val;
 
                 for (int d : {0, 1}) {

@@ -16,8 +16,8 @@ GY   = data(:, 5:5:end);
 % Z = Zi .* 10000.0; 
 col_min = min(Zi);
 col_max = max(Zi);
-% Z = (Zi - col_min) ./ (col_max - col_min);
-Z = Zi;
+Z = (Zi - col_min) ./ (col_max - col_min);
+% Z = Zi;
 
 minx = X(1,   1);
 maxx = X(1, end);

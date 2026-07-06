@@ -2,10 +2,11 @@
 #define SDF_BASE_HPP__
 
 #include "rbf.hpp"
+#include "samples.hpp"
 #include "ultimaille/algebra/vec.h"
 #include <concepts>
 #include <memory>
-#include <nlohmann/json.hpp>
+#include "nlohmann/json.hpp"
 #include <tuple>
 #include <vector>
 
@@ -75,6 +76,7 @@ struct SDF_Base {
 		}
 		return {d, {gx, gy}};
 	}
+
 
 
 

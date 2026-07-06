@@ -10,6 +10,7 @@ struct RBF {
 	virtual inline double f(double r, double e) const = 0;
 	virtual inline double df(double r, double e) const = 0;
 	virtual inline double ddf(double r, double e) const = 0;
+	virtual inline double dddf(double r, double e) const { return 0.; };
 	virtual inline std::string name() const = 0;
 };
 
@@ -70,34 +71,39 @@ struct WendlandC2 : RBF {
 
     inline std::string name() const override { return "wendlandC2"; }
 };
-/*
-struct Pow3 : RBF {
-	inline double f(double r, double e) const override {
-		return r * r * r * e;
-	}
-	inline double df(double r, double e) const override {
-		return 3 * r * r * e; 
-	}
-	inline double ddf(double r, double e) const override {
-		return 6 * r * e;
-	}
 
-	inline std::string name() const override { return "pow3"; }
-};
-*/
-struct InverseMultiquadric : RBF {
-	inline double f(double r, double e) const override {
-		return 1. / std::sqrt(1 + e * e * r * r);
-	}
-	inline double df(double r, double e) const override {
-		return -e * e * r / std::pow(1 + e * e * r * r, 1.5); 
-	}
-	inline double ddf(double r, double e) const override {
-		return e * e * (2 * e * e * r * r - 1) / std::pow(1 + e * e * r * r, 2.5); 
-	}
+struct WendlandC4 : RBF {
+    inline double f(double r, double e) const override {
+        double t = r / e;
+        if (t >= 1.0) return 0.0;
+        double s = 1.0 - t;
+        return s*s*s*s*s*s * (35.0*t*t + 18.0*t + 3.0);
+    }
 
-	inline std::string name() const override { return "inverse-multiquadric"; }
+    inline double df(double r, double e) const override {
+        double t = r / e;
+        if (t >= 1.0) return 0.0;
+        double s = 1.0 - t;
+        return (-56.0 * t * s*s*s*s*s * (5.0*t + 1.0)) / e;
+    }
+
+    inline double ddf(double r, double e) const override {
+        double t = r / e;
+        if (t >= 1.0) return 0.0;
+        double s = 1.0 - t;
+        return (56.0 * s*s*s*s * (30.0*t*t - 3.0*t - 1.0)) / (e * e);
+    }
+
+    inline double dddf(double r, double e) const override {
+        double t = r / e;
+        if (t >= 1.0) return 0.0;
+        double s = 1.0 - t;
+        return (-1680.0 * t * s*s*s * (2.0*t - 1.0)) / (e * e * e);
+    }
+
+    inline std::string name() const override { return "wendlandC4"; }
 };
+
 
 
 

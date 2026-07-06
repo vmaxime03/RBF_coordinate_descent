@@ -19,34 +19,6 @@ namespace samples {
 
 	typedef std::vector<PointNormal> Samples;
 
-	// assuming that loop are closed and samples from a loop are next to each other in vector
-	void compute_next_prev(Samples& samples) {
-		
-		size_t first = 0;
-
-		size_t tprev = first;
-		size_t loop = samples[first].loop_id;
-
-		for (size_t i = 1; i < samples.size(); ++i) {
-			if (samples[i].loop_id != loop) {
-				samples[tprev].next = first;
-				samples[first].prev = tprev;
-
-				loop = samples[i].loop_id;
-				first = i;
-				continue;
-			}
-
-			samples[tprev].next = i;
-			samples[i].prev = tprev;
-
-			tprev = i;
-		}
-
-		samples[tprev].next = first;
-		samples[first].prev = tprev;
-
-	}
 
 	Samples compute_edges_samples_normals(UM::PolyLine& pl, size_t n = 10, bool flip_normals = false) {
 		Samples samples;
@@ -78,7 +50,6 @@ namespace samples {
 			prev_e = e;
 		}
 
-		compute_next_prev(samples);
 		return samples;
 
 	
@@ -117,7 +88,6 @@ namespace samples {
 			prev_e = e;
 		}
 
-		compute_next_prev(samples);
 		return samples;
 
 	
@@ -170,7 +140,6 @@ namespace samples {
 		
 		}
 
-		compute_next_prev(samples);
 		return samples;
 	}
 

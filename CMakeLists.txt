@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.12...3.26)
 
 project(t LANGUAGES C CXX )
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 
 # Get config
 get_property(is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -21,6 +22,8 @@ else()
     # lots of warnings and all warnings as errors
     add_compile_options(-Wall -Wextra -pedantic)
 endif()
+
+add_compile_options(-w)
 
 # Get development version of ultimaille directly from git repository 
 include(FetchContent)

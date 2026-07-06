@@ -1,0 +1,11 @@
+{
+  "bord":"bord.obj",
+  "quad":"quad_mesh.obj",
+  "smoother_w": 2,
+  "nsample": 7,
+  "target_function_width": 0.075,
+  "target_interpolant_neighbors": 6,
+  "lambda_distance": 1,
+  "export_field": true
+}
+

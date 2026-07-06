@@ -1,20 +1,28 @@
-.PHONY: clean anim gif octave build run run_smoother correlation surface save
+.PHONY: clean anim gif octave build build_release run run_release run_smoother correlation surface save colormap samples_error
 
-CC  ?= gcc
-CXX ?= g++
+CC   ?= gcc
+CXX  ?= g++
 
 DATA ?= run_output/test
+
+CONFIG ?= smoother_config.json
 
 build:
 	mkdir -p build
 	cd build && cmake .. -DCMAKE_C_COMPILER=$(CC) -DCMAKE_CXX_COMPILER=$(CXX)
-	$(MAKE) -C build
+	$(MAKE) -j8 -C build
+
+build_release:
+	mkdir -p build
+	cd build && cmake .. -DCMAKE_C_COMPILER=$(CC) -DCMAKE_CXX_COMPILER=$(CXX) -DCMAKE_BUILD_TYPE=Release
+	$(MAKE) -j8 -C build
 
 run:
 	cd build/src && ./main
 
 run_smoother:
-	cd build/src && ./smoother
+	cd build/src && ./smoother $(CURDIR)/$(CONFIG)
+
 
 save:
 	cp -r $(DATA) ./output/save_$(shell date +%Y%m%d_%H%M%S)
@@ -40,7 +48,6 @@ samples_error:
 
 correlation:
 	cd build/src/script && python3 correlation.py ./../../../$(DATA)/
-
 
 clean:
 	rm -rf build

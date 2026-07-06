@@ -20,11 +20,10 @@
 namespace sdffitting_elliptic {
 
 
-	struct TODONAMEFitter : Fitter_Elliptic {
-		using Fitter_Elliptic::Fitter_Elliptic;
+		struct TODONAMEFitter : Fitter_Elliptic {
+			using Fitter_Elliptic::Fitter_Elliptic;
 
-
-		void adapt_minor(double min_radius_coef = 1.0) {
+			void adapt_minor(double min_radius_coef = 1.0) {
 
 #pragma omp parallel for schedule(guided)
 			for (size_t i = 0; i < sdf.fonctions.size(); ++i) {
@@ -92,7 +91,8 @@ namespace sdffitting_elliptic {
 				auto o3 = _cross(s2.a, s2.b, s1.a);
 				auto o4 = _cross(s2.a, s2.b, s1.b);
 				
-				// check segment overlap
+				// check segme:q
+				// nt overlap
 				auto _overlap = [](double a, double b, double c, double d) {
 					return std::max(std::min(a, b), std::min(c, d)) <= std::min(std::max(a, b), std::max(c, d));
 				};
@@ -260,8 +260,9 @@ namespace sdffitting_elliptic {
 			}
 
 
+			// ELLIPSE FITTING ============================================================
 
-			void fit_ellipses_radius(double W, double K = 1) {
+			void fit_ellipses_radius(double W, int K = 2, int min_K = 2) {
 
 				int N = sdf.fonctions.size();
 
@@ -279,13 +280,55 @@ namespace sdffitting_elliptic {
 					B_dirs[i] = sdf.fonctions[i].ellipse_minor.normalized();
 				}
 
+				// precompute neighborhoods
+
+				if (!sdf.optimized) sdf.init_knn();
+				std::vector<std::vector<int>> neighborhoods(N);
+
+				for (int i = 0; i < N; ++i) {
+					auto& fi = sdf.fonctions[i];
+
+					// TODO maybe query more than K and filter out opposed ellipse
+					auto neighborhood = sdf.knn->query(fi.point, 1 + K);
+
+					std::vector<int> filtered;
+					filtered.reserve(neighborhood.size());
+
+					int right = 0, left = 0;
+					for (int n : neighborhood) {
+						if (n == i) {
+							continue;
+						}
+						auto& fn = sdf.fonctions[n];
+
+						if ((fn.point - fi.point) * fi.ellipse_major > 0) { // right side neighbor
+							++right;
+							if (right > K/2 && filtered.size() > static_cast<size_t>(min_K)) {
+								continue;
+							}
+						} else { // left side neighbor
+							++left;
+							if (left > K/2 && filtered.size() > static_cast<size_t>(min_K)) {
+								continue;
+							}
+						}
+
+						filtered.push_back(n);
+
+						if (filtered.size() > static_cast<size_t>(K)) break;
+
+					}
+
+					neighborhoods[i] = filtered;
+				}
+
+
 				constexpr double lambda_W = 1000.;
 				constexpr double lambda_Area = 1.;
 				constexpr double lambda_K = 100.;
 
 				double lambda_K_weigth = (lambda_K / (2*K));
 
-				constexpr double k = 10.; // softmin parameter
 
 				// energy : minor value = W + ellipse area + contains Ci-1 & Ci+1
 
@@ -304,29 +347,33 @@ namespace sdffitting_elliptic {
 						auto& g1 = g[2*i];
 						auto& g2 = g[2*i+1];
 
+						// 
 						f += lambda_W * ((b - W)*(b - W));
 
 						g1 += 0;
 						g2 += lambda_W * 2 * (b - W);
 
-
+						//
 						f += lambda_Area * (a*a*b*b);
 
-						g1 += lambda_Area * 2 * b;
-						g2 += lambda_Area * 2 * a;
+						g1 += lambda_Area * 2 * a * b * b;
+						g2 += lambda_Area * 2 * b * a * a;
 
-						for (int k = 1; k <= K; ++k) {
-							for (int s : {-1, 1}) {
-								int j = (N + i + s*k)%N;
 
-								auto& fj = sdf.fonctions[j];
+						for (int j : neighborhoods[i]) {
+							if (i == j) continue;
 
-								double dir_weigth = ((B_dirs[i] * B_dirs[j]) + 1.0) / 2.0;
-								double current_lambda_K = lambda_K_weigth ; // * dir_weigth;
-	
-								auto diff = fj.point - fi.point;
+							auto& fj = sdf.fonctions[j];
 
-								if (diff.norm() > W) continue; // TODO prevent bug with multiple loop inside polyline
+							double cosinus_normalized = ((B_dirs[i] * B_dirs[j]) + 1.0) / 2.0;
+							double dir_weigth = cosinus_normalized * cosinus_normalized;
+							double current_lambda_K = lambda_K_weigth * dir_weigth;
+
+							for (auto dir : {-1.0, 0.0}) {
+								// auto point_to_contain = fj.point;
+								auto point_to_contain = fj.point + dir * fj.ellipse_minor.normalized() * (W * 0.5) * cosinus_normalized;
+
+								auto diff = point_to_contain - fi.point;
 
 								double x_prime = diff * A_dirs[i];
 								double y_prime = diff * B_dirs[i];
@@ -340,20 +387,25 @@ namespace sdffitting_elliptic {
 									g2 += current_lambda_K * 2.0 * ell_dist * (-2.0 * y_prime * y_prime / (b * b * b));
 
 								}
-
 							}
-						}
 
+						}
 					}
 
 
 
 				};
 
+				double E_prev, E;
+				std::vector<double> trash(X.size());
+				func(X, E_prev, trash);
 
 
 				STLBFGS::Optimizer opt(func);
 				opt.run(X);
+
+				func(X, E, trash);
+    			DEBUG("E: " <<  E_prev << " --> " << E);
 
 				for (int i = 0; i < N; ++i) {
 					sdf.fonctions[i].ellipse_major = X[i*2] * A_dirs[i];

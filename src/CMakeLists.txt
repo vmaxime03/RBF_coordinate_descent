@@ -13,7 +13,7 @@ target_link_libraries(main  ${CMAKE_DL_LIBS} ultimaille $<$<BOOL:${OpenMP_CXX_FO
 target_link_libraries(main nlohmann_json::nlohmann_json)
 
 
-add_executable(smoother smoother_opti.cpp)
+add_executable(smoother smoother.cpp)
 target_link_libraries(smoother ${CMAKE_DL_LIBS} ultimaille $<$<BOOL:${OpenMP_CXX_FOUND}>:OpenMP::OpenMP_CXX>)
 target_link_libraries(smoother nlohmann_json::nlohmann_json)
 
@@ -28,7 +28,6 @@ file(MAKE_DIRECTORY "${OUTPUT_DIR}")
 add_definitions(-DASSETS_INPUT_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/assets/\")
 add_definitions(-DOUTPUT_DIR=\"${OUTPUT_DIR}/\")
 
-# Copy asset files to build directory
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/script DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 set(INPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../assets")

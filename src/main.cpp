@@ -20,7 +20,6 @@
 #include "algo_base_elliptic.hpp"
 #include "algo_ellipse_imp.hpp"
 
-#include "sdf_smoothmin.hpp"
 
 
 // #include "test_eigen.hpp"
@@ -40,17 +39,18 @@ int main(int argc, char** argv) {
 	auto rbf = std::make_unique<WendlandC2>();
 	
 	
-	// int n = 8; PolyLineGenerator::regular_polygon(pl, n);
+	// int n = 16; PolyLineGenerator::regular_polygon(polyline, n);
+	// PolyLineGenerator::demi_circle(polyline, 10, 20);
 	// PolyLineGenerator::read_from_file(polyline, input_dir + "duck.geogram");
 
 	// PolyLineGenerator::read_from_file(pl, input_dir + "lapinpluslisseplusdense_quad_mesh.obj");
 	
-	// PolyLineGenerator::read_from_file(pl, input_dir + "cerf.geogram");
+	// PolyLineGenerator::read_from_file(polyline, input_dir + "cerf.geogram");
 	// PolyLineGenerator::read_from_file(polyline, input_dir + "o.obj");
 	// PolyLineGenerator::read_from_file(pl, input_dir + "o1.obj");
 	// PolyLineGenerator::read_from_file(pl, input_dir + "o2.obj");
-	// PolyLineGenerator::read_from_file(pl, input_dir + "ooo.obj");
-	// PolyLineGenerator::read_from_file(pl, input_dir + "ooo2.obj");
+	// PolyLineGenerator::read_from_file(polyline, input_dir + "ooo.obj");
+	// PolyLineGenerator::read_from_file(polyline, input_dir + "ooo2.obj");
 	// PolyLineGenerator::read_from_file(pl, input_dir + "e.obj");
 	// PolyLineGenerator::read_from_file(pl, input_dir + "u.obj");
 
@@ -58,114 +58,67 @@ int main(int argc, char** argv) {
 	
 
 	PolyLineGenerator::read_polyline_directly(polyline, input_dir + "lapinpluslisseplusdense_bord.obj");
+	// PolyLineGenerator::read_polyline_directly(polyline, input_dir + "rocket.geogram");
 
+	// PolyLineGenerator::read_polyline_directly(polyline, input_dir + "patte.geogram");
+	
+	// PolyLineGenerator::read_from_file(polyline, input_dir + "square_bord.obj");
 
-	// SDF sdf(std::move(rbf));
 
 	TIME_DEBUG("read pl, nedges: " << polyline.nedges());
 
-	//
-	//
-	// auto pls = PolyLineGenerator::extract_subpolylines(polyline);
+
+	auto pls = PolyLineGenerator::extract_subpolylines_corner(polyline);
 	// //
-	// DEBUG(pls.size());
+	TIME_DEBUG("found subpolylines :" << pls.size());
+	int k = 0;
+	std::filesystem::create_directories(output_dir + "subpolylines/");
+	for (auto& subpl : pls) {
+		write_by_extension(output_dir + "subpolylines/" + std::to_string(k) + ".geogram", *subpl);
+
+		DEBUG("subpl " << k << " npoints: " << subpl->nverts() << " nedges: " << subpl->nedges());
+		++k;
+
+
+
+	}
 	// PolyLine& pl = *pls[0];
 
 	PolyLine& pl = polyline;
 
-	/* 
-	bool flip_normals = false;
-	double default_sigma = 0.05; // wendland
-	//double default_sigma = 0.05; // gaussian
+	// double scale = PolyLineGenerator::normalize_pl(pl);
+	double scale = 1.;
 
-	// 1 point
-	//auto e = pl.iter_edges().begin().h ; sdf.add_func((e.from().pos().xy() + e.to().pos().xy())/2, 1., {0., 0.}, 1.);
-	
 
-	// SDFPointInit::circle(sdf, 10, [](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, r};});
-	// SDFPointInit::shape(sdf, pl, [](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, r/2};});
-	// SDFPointInit::shape_multiple(sdf, pl, 10, [](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, r};});
-	// SDFPointInit::equaly_spaced_shape(sdf, pl, 10, [](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, r};});
 
-	// auto algo = sdffitting::TestElliptic(sdf, samples);
-	auto samples = samples::compute_edges_samples_normals(pl, 100, flip_normals);
-
-	//auto algo = sdffitting::AlphaBetaOnlyAddFitter(sdf, samples);
-	auto algo = sdffitting::ClusteringFitter(sdf, samples);
-	
-	algo.K = 2;
-	algo.margin = 1.;
-
-	algo.angular_threshold = std::numbers::pi / 18;
-	algo.min_distance_points = 0.05;
-	algo.cluster_min_size = 2;
-	algo.error_threshold = 0.1;
-
-	algo.ADD_POINT_ERR_THRESHOLD = 1.;
-	algo.default_sigma_add = default_sigma;
-
-	algo.fix_alpha_zero = false;
-	algo.fix_beta_zero = false;
-
-	algo.MIN_IMPROVEMENT = 1e-8;
-
-	algo.lambda_distance = 1.;
-	algo.lambda_gradient = 1.;
-
-	int IT = 10;
-	// algo.fit(IT, IT, output_dir);
-
-	algo.resolve_ls();
-
-	*/
-
-	// TEST Elliptic
-	
-	
 	SDF_Elliptic sdf(std::move(rbf));
 	// UDF_Elliptic sdf(std::move(rbf));
 
+	int polyline_segmant_nsample = 6;
+	double target_function_width = 0.1 * scale;
+	int target_interpolant_neighbors = 6;
+	double lambda_distance = 10.;
 
 	auto NORMAL = [](const vec2& v) -> vec2 { return {-v.y, v.x}; };
 	SDFPointInit::shape(sdf, pl, [&](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, NORMAL(n) * r*0.5, r*0.5*n};});
-	// SDFPointInit::shape_multiple(sdf, pl, 10, [&](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, NORMAL(n) * r, n * r/4 };});
-	// SDFPointInit::equaly_spaced_shape(sdf, pl, 10, [&](auto p, auto n, auto r) -> FunctionElliptic { return {p, 0., n, NORMAL(n) * r, n * r/2 };});
-	//
-	//
-
-	TIME_DEBUG("sdf points");
-
-
-	auto samples = samples::compute_edges_samples_normals(pl, 5);
-
-	TIME_DEBUG("samples");
-
-	// auto samples = samples::compute_edges_samples_normals_include_end(pl, 2);
-	// auto samples = samples::compute_equally_spaced_samples_normals(pl, 400);
-
-
-	// auto algo = sdffitting_elliptic::TestEllipse(sdf, samples);
+	auto samples = samples::compute_edges_samples_normals(pl, polyline_segmant_nsample);
 	auto algo = sdffitting_elliptic::TODONAMEFitter(sdf, samples);
 
-	//
-	algo.adapt_minor(1.0);
-	TIME_DEBUG("adapt minor");
-	//
-	algo.decimate(1e-4, false);
-	//
-	TIME_DEBUG("decimate");
-
-	// algo.adapt_minor(1.0);
-	
-
-	//
-	// algo.adapt_minor(1.); 
-	// algo.adjust_major(20.0); 
-	// //
-	// algo.adjust_minor(10.);
-	//
-	algo.fit_ellipses_radius(0.05, 2);
+	algo.fit_ellipses_radius(target_function_width, target_interpolant_neighbors);
 	TIME_DEBUG("fit ellipse");
+
+
+	algo.lambda_distance = lambda_distance;
+	algo.resolve_ls();
+
+	sdf.optimize();
+	TIME_DEBUG("sdf optimization");
+	sdf.neighborhood_size = target_interpolant_neighbors + 4;
+
+
+
+
+
 
 	double max_area = 0;
 	double mean_area = 0;
@@ -180,28 +133,6 @@ int main(int argc, char** argv) {
 
 	TIME_DEBUG("mean : " << mean_area << " max : " << max_area);
 
-
-	
-	algo.lambda_distance = 100.;
-
-	algo.resolve_ls();
-	//
-	
-	// DEBUG("init eigen sovler");
-	// TestEigen::test(sdf, samples);
-	// TestEigen::testBFGS(sdf, samples);
-	// TestEigen::BFGS_LS::testBFGS_LS(sdf, samples);
-	// DEBUG("end eigen solver");
-	
-	DEBUG("optimization");
-	TIME_DEBUG_INIT();
-
-	sdf.optimize();
-
-	sdf.max_neighbors = 20;
-
-	TIME_DEBUG("sdf optimization");
-
 	
 
 	
@@ -215,39 +146,12 @@ int main(int argc, char** argv) {
 	// output::export_samples_error(samples, sdf, output_dir + "samples_error.csv", algo.lambda_distance, algo.lambda_gradient);
 	// output::sample_sdf(sdf, -3, -3, 3, 3, output_dir + "sdf.csv");
 	//
-	double samples_offset = 0.05; // = default_sigma
-	output::sample_sdf(sdf, -1. - samples_offset, -1. - samples_offset, 1. + samples_offset, 1. + samples_offset, output_dir + "sdf.csv", 1000);
+	double samples_offset = 0.2; // = default_sigma
+	output::sample_sdf(sdf, -1. - samples_offset, -1. - samples_offset, 1. + samples_offset, 1. + samples_offset, output_dir + "sdf.csv", 500);
 	TIME_DEBUG("sample_sdf");
 	// std::ofstream(output_dir + "last.json") << sdf.to_json().dump(2);
 
 	// std::cout << "FINAL SDF:\n" << sdf.to_string() << std::endl;
-
-
-
-	// EXPSMIN smin;
-	// RFUNC_MIN smin;
-	// SMOOTHMIN smin(
-	// 		[](double x) { 
-	// 		if (x <= -1.0) return 0.0;
-	// 		if (x >= 1.0)  return x;
-	// 		return (x * (2.0 + x)+1)/4.0 ;
-	// 		},
-	// 		[](double x) { 
-	// 		if (x <= -1.0) return 0.0;
-	// 		if (x >= 1.0)  return 1.0;
-	// 		return (1.0+x)/2.0 ;
-	// 		});
-	//
-	// SDF_Smoothmin sdf(pl, smin);
-	//
-	//
-
-	// auto samples = samples::compute_edges_samples_normals(pl, 1);
-	// output::export_samples_error(samples, sdf, output_dir + "samples_error.csv");
-
-	// output::export_polyline(pl, output_dir + "polyline.csv");
-	// double samples_offset = 0.2; // = default_sigma
-	// output::sample_sdf(sdf, -1. - samples_offset, -1. - samples_offset, 1. + samples_offset, 1. + samples_offset, output_dir + "sdf.csv", 500);
 	//
 
 	return 0;

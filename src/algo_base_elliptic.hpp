@@ -24,22 +24,23 @@ namespace sdffitting_elliptic {
 	using namespace UM;
 	using namespace UM::Linear;
 
-	struct Fitter_Elliptic {
+		struct Fitter_Elliptic {
 
-		SDF_Elliptic&    sdf;
-		samples::Samples samples;
+			SDF_Elliptic&        sdf;
+			samples::Samples samples;
 
-		bool   fix_alpha_zero  = false;
-		bool   fix_beta_zero   = false;
+			bool   fix_alpha_zero  = false;
+			bool   fix_beta_zero   = false;
 
 
-		// error coefs 
-		double lambda_distance = 1.;
-		double lambda_gradient = 1.;
-
+			// error coefs 
+			double lambda_distance = 1.;
+			double lambda_gradient = 1.;
 
 		explicit Fitter_Elliptic(SDF_Elliptic& _sdf, samples::Samples _samples)
-			: sdf(_sdf), samples(std::move(_samples)) {}
+        : sdf(_sdf), samples(std::move(_samples)) {}
+
+
 
 		virtual ~Fitter_Elliptic() = default;
 
@@ -110,7 +111,19 @@ namespace sdffitting_elliptic {
 
 					double e = y.norm();
 
-					if (e <= 1e-14 || e >= 1) continue;
+					if (e >= 1) continue; // phi will be 0 anyway
+										  // case when e->0 (center is on sample)
+					if (e <= 1e-14) { // TODO this calculus assume WendlandC2 rbf, fix in refac
+						value_res += alpha;
+						auto MtM = Mt * M;
+						for (size_t k = 0; k < 2; ++k) {
+							auto MtMk = MtM.rows[k];
+							grad_res[k] += -20 * (MtMk.x * betax + MtMk.y * betay);
+						}
+						continue;
+					} 
+
+						
 
 					auto grad_e = (Mt * y) / y.norm();
 
@@ -201,15 +214,15 @@ namespace sdffitting_elliptic {
 		}
 
 	};
-
-	struct TestEllipse : Fitter_Elliptic {
-		using Fitter_Elliptic::Fitter_Elliptic;
-
-		void fit(size_t max_it, size_t snapshot, const std::string &output_dir) override {
-
-		}
-
-};
+//
+// 	struct TestEllipse : Fitter_Elliptic {
+// 		using Fitter_Elliptic::Fitter_Elliptic;
+//
+// 		void fit(size_t max_it, size_t snapshot, const std::string &output_dir) override {
+//
+// 		}
+//
+// };
 
 
 } // namespace sdffitting
