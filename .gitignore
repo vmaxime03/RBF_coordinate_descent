@@ -1,4 +1,6 @@
 build/
 output/
 
-assets/
+assets/*
+!assets/bord.obj 
+!assets/quad_mesh.obj

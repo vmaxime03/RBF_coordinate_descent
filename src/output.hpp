@@ -2,10 +2,15 @@
 #define OUTPUT_HPP__ 
 
 #include "sdf.hpp"
+#include "sdf_base.hpp"
 #include "ultimaille/polyline.h"
-
+#include "samples.hpp"
 #include <fstream>
-void sample_sdf(SDF& sdf, double minx, double miny, double maxx, double maxy, const std::string& fname, int step = 100) {
+
+namespace output {
+
+
+void sample_sdf(auto& sdf, double minx, double miny, double maxx, double maxy, const std::string& fname, int step = 100) {
 	std::ofstream out(fname);
 	int w = step;
 	int h = step;
@@ -13,8 +18,7 @@ void sample_sdf(SDF& sdf, double minx, double miny, double maxx, double maxy, co
 		for (int i = 0; i < w; ++i) {
 			const double x = minx + (double(i) / double(w - 1)) * (maxx - minx);
 			const double y = miny + (double(j) / double(h - 1)) * (maxy - miny);
-			double dist = sdf.distance({x, y});
-			UM::vec2 grad = sdf.gradient({x, y});
+			auto [dist, grad] = sdf.eval({x, y});
 			out << x << "," << y << "," << dist << "," << grad.x << "," << grad.y ;
 
 			if (i < w - 1) out << ",";
@@ -27,17 +31,45 @@ void sample_sdf(SDF& sdf, double minx, double miny, double maxx, double maxy, co
 void export_polyline(UM::PolyLine& pl, const std::string& fname) {
 	std::ofstream out(fname);
 	for (const auto& e : pl.iter_edges()) {
-		auto f = e.from().pos(), t = e.to().pos();
+		auto f = e.from().pos();
+		auto t = e.to().pos();
 		out << f.x << "," << f.y << "," << t.x << "," << t.y << "\n";
 	}
 	out.close();
 }
 
-void export_sdf(SDF& sdf, const std::string& fname) {
+void export_sdf(auto& sdf, const std::string& fname) {
 	std::ofstream f(fname);
-	for (size_t i = 0; i < sdf.p.size(); ++i)
-		f << sdf.p[i].x << "," << sdf.p[i].y << ","
-			<< sdf.beta[i].x << "," << sdf.beta[i].y << "\n";
+	for (size_t i = 0; i < sdf.fonctions.size(); ++i) {
+		f << sdf.fonctions[i].point.x << "," << sdf.fonctions[i].point.y << "," << sdf.fonctions[i].beta.x << "," << sdf.fonctions[i].beta.y << "\n";
+	}
+	f.close();
 }
 
+
+void export_samples(samples::Samples& samples, const std::string& fname) {
+	std::ofstream f(fname);
+	for (const auto& s : samples) {
+		f << s.point.x << "," << s.point.y << "," << s.normal.x << "," << s.normal.y << "\n";
+	}
+	f.close();
+}
+
+void export_samples_error(samples::Samples& samples, auto& sdf, const std::string& fname, double lambda_distance = 1., double lambda_gradient = 1.) {
+	std::ofstream f(fname);
+	for (auto& s : samples) {
+		double dist = sdf.distance(s.point);
+		auto diff = s.normal - sdf.gradient(s.point);
+		f << s.point.x << "," << s.point.y << "," << lambda_distance * dist*dist << "," << lambda_gradient * diff.norm2() << "\n";
+		
+		// f << s.point.x << "," << s.point.y << "," << fitter.error_on_sample(s) << "\n";
+	}
+	f.close();
+}
+
+
+
+
+
+}
 #endif 

@@ -10,6 +10,7 @@ struct RBF {
 	virtual inline double f(double r, double e) const = 0;
 	virtual inline double df(double r, double e) const = 0;
 	virtual inline double ddf(double r, double e) const = 0;
+	virtual inline double dddf(double r, double e) const { return 0.; };
 	virtual inline std::string name() const = 0;
 };
 
@@ -27,6 +28,20 @@ struct Gaussian : RBF {
 	inline std::string name() const override { return "gaussian"; }
 };
 
+struct GaussianMinusOne : RBF {
+	Gaussian g;
+	inline double f(double r, double e) const override {
+		return g.f(r, e) - 1;
+	}
+	inline double df(double r, double e) const override {
+		return g.df(r, e);
+	}
+	inline double ddf(double r, double e) const override {
+		return g.ddf(r, e);
+	}
+	std::string name() const override { return g.name(); }
+};
+
 
 struct WendlandC2 : RBF {
     inline double f(double r, double e) const override {
@@ -36,50 +51,62 @@ struct WendlandC2 : RBF {
         return s*s*s*s * (4.0*t + 1.0);
     }
 
-    inline double df(double r, double e) const override {
+  inline double df(double r, double e) const override {
         double t = r / e;
         if (t >= 1.0) return 0.0;
         double s = 1.0 - t;
-        return (s*s*s * (-4.0*(4.0*t + 1.0)) + s*s*s*s * 4.0) / e;
+        
+        // Simplified from your original expression
+        return (-20.0 * t * s * s * s) / e;
     }
 
     inline double ddf(double r, double e) const override {
         double t = r / e;
         if (t >= 1.0) return 0.0;
         double s = 1.0 - t;
-        return (s*s * (20.0 * (4.0*t + 1.0) - 8.0*s*4.0 - 4.0*s*4.0)) / (e*e);
+        
+        // Corrected and simplified expression
+        return (20.0 * s * s * (4.0 * t - 1.0)) / (e * e);
     }
 
     inline std::string name() const override { return "wendlandC2"; }
 };
 
-struct Pow3 : RBF {
-	inline double f(double r, double e) const override {
-		return r * r * r * e;
-	}
-	inline double df(double r, double e) const override {
-		return 3 * r * r * e; 
-	}
-	inline double ddf(double r, double e) const override {
-		return 6 * r * e;
-	}
+struct WendlandC4 : RBF {
+    inline double f(double r, double e) const override {
+        double t = r / e;
+        if (t >= 1.0) return 0.0;
+        double s = 1.0 - t;
+        return s*s*s*s*s*s * (35.0*t*t + 18.0*t + 3.0);
+    }
 
-	inline std::string name() const override { return "pow3"; }
+    inline double df(double r, double e) const override {
+        double t = r / e;
+        if (t >= 1.0) return 0.0;
+        double s = 1.0 - t;
+        return (-56.0 * t * s*s*s*s*s * (5.0*t + 1.0)) / e;
+    }
+
+    inline double ddf(double r, double e) const override {
+        double t = r / e;
+        if (t >= 1.0) return 0.0;
+        double s = 1.0 - t;
+        return (56.0 * s*s*s*s * (30.0*t*t - 3.0*t - 1.0)) / (e * e);
+    }
+
+    inline double dddf(double r, double e) const override {
+        double t = r / e;
+        if (t >= 1.0) return 0.0;
+        double s = 1.0 - t;
+        return (-1680.0 * t * s*s*s * (2.0*t - 1.0)) / (e * e * e);
+    }
+
+    inline std::string name() const override { return "wendlandC4"; }
 };
 
-struct InverseMultiquadric : RBF {
-	inline double f(double r, double e) const override {
-		return 1. / std::sqrt(1 + e * e * r * r);
-	}
-	inline double df(double r, double e) const override {
-		return -e * e * r / std::pow(1 + e * e * r * r, 1.5); 
-	}
-	inline double ddf(double r, double e) const override {
-		return e * e * (2 * e * e * r * r - 1) / std::pow(1 + e * e * r * r, 2.5); 
-	}
 
-	inline std::string name() const override { return "inverse-multiquadric"; }
-};
+
+
 
 
 
